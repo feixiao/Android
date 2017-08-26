@@ -5,3 +5,4 @@
 
 #### 开源项目
 + [android-UniversalMusicPlayer](https://github.com/googlesamples/android-UniversalMusicPlayer)
++ [ijkplayer](https://github.com/feixiao/ijkplayer)
