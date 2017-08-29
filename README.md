@@ -2,6 +2,7 @@
 
 #### 书籍
 + [《第一行代码：Android（第2版）》](https://book.douban.com/subject/26915433/)
++ [Android开发训练](http://www.android-doc.com/training/index.html) Google官方的Android开发训练课程。
 
 #### 开源项目
 + [android-UniversalMusicPlayer](https://github.com/googlesamples/android-UniversalMusicPlayer)
