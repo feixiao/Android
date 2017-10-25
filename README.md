@@ -13,3 +13,4 @@
 
 #### 工具
 + [Ubuntu下genymotion模拟器的安装与破解](http://www.jianshu.com/p/67b4e71380d1)
++ [Genymotion 解决虚拟镜像下载速度特别慢的问题](http://blog.csdn.net/qing666888/article/details/51622762)
