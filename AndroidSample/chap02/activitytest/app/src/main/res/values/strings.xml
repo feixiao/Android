@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">activitytest</string>
+    <string name="btn_name">button1</string>
+</resources>
