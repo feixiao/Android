@@ -1,4 +1,7 @@
 <resources>
     <string name="app_name">activitytest</string>
     <string name="btn_name">button1</string>
+    <string name="btn2_name">finish</string>
+    <string name="btn4_name">Start a new activity</string>
+    <string name="btn5_name">WebView</string>
 </resources>
