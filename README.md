@@ -7,6 +7,12 @@
 #### 视频教程
 + [《Android视频播放器》](http://www.imooc.com/learn/788)
 
+
+#### 简单例子
++ [《摄像头采集和预览》](https://github.com/feixiao/FboCamera.gi) 使用GLSurfaceView预览摄像头采集画面。
+
+
+
 #### 开源项目
 + [android-UniversalMusicPlayer](https://github.com/googlesamples/android-UniversalMusicPlayer)
 + [ijkplayer](https://github.com/feixiao/ijkplayer)
