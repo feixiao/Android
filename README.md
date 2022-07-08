@@ -3,6 +3,8 @@
 #### 书籍
 + [《第一行代码：Android（第2版）》](https://book.douban.com/subject/26915433/)
 + [Android开发训练](http://www.android-doc.com/training/index.html) Google官方的Android开发训练课程。
++ [App研发录](https://book.douban.com/subject/26649050/) 
+    + [代码](https://github.com/feixiao/AppProgrammingSource) 
 
 #### 视频教程
 + [《Android视频播放器》](http://www.imooc.com/learn/788)
