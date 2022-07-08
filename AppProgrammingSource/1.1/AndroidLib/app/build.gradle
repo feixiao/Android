@@ -1,12 +1,12 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 17
+    compileSdkVersion 32
     buildToolsVersion "30.0.3"
 
     defaultConfig {
-        minSdkVersion 8
-        targetSdkVersion 30
+        minSdkVersion 24
+        targetSdkVersion 32
     }
 
     buildTypes {
@@ -18,5 +18,17 @@ android {
 }
 
 dependencies {
+    //noinspection GradleCompatible
     implementation 'com.android.support:support-v4:18.+'
 }
+
+
+task makeJar(type: Copy) {
+    delete 'libs/mylibrary.jar'     //  删除已经存在的jar包
+    from('build/intermediates/aar_main_jar/debug')   // 从该目录下加载要打包的文件，注意这个目录，不同版本的AndroidStudio是不一样的，比如在3.0版本是build/intermediates/bundles/release/，要自己去查一下。
+    into('libs/')           //  jar包的保存目录
+    include('classes.jar')  //  设置过滤，只打包classes文件
+    rename('classes.jar', 'mylibrary.jar')//    重命名，mylibrary.jar 根据自己的需求设置
+}
+makeJar.dependsOn(build)
+
