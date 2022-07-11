@@ -4,7 +4,7 @@ import android.app.AlertDialog;
 import android.os.Bundle;
 import android.widget.TextView;
 
-import com.example.youngheart.R;
+import com.youngheart.R;
 import com.google.gson.Gson;
 import com.youngheart.base.AppBaseActivity;
 import com.youngheart.engine.RequestAsyncTask;

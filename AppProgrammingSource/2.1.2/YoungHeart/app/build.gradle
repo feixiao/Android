@@ -22,7 +22,10 @@ dependencies {
     implementation project(':androidLib')
     implementation 'com.android.support:support-v4:18.+'
     implementation 'com.google.code.gson:gson:2.2.4'
-    implementation 'org.apache.httpcomponents:httpcore:4.4.1'
-    implementation 'org.apache.httpcomponents:client:4.4.1'
+    implementation 'org.apache.httpcomponents:httpclient-android:4.3.5.1'
 //    implementation files('libs/fastjson_1.1.33.jar')
+}
+
+android {
+    useLibrary 'org.apache.http.legacy'
 }

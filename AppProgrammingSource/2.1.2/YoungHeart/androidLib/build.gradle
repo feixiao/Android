@@ -20,6 +20,12 @@ android {
 dependencies {
     implementation 'com.android.support:support-v4:18.+'
     implementation files('libs/fastjson_1.1.33.jar')
-    implementation 'org.apache.httpcomponents:httpcore:4.4.1'
-    implementation 'org.apache.httpcomponents:client:4.4.1'
+    implementation 'org.apache.httpcomponents:httpclient-android:4.3.5.1'
+//    implementation 'org.apache.httpcomponents:httpmime:4.4.1'
+
+}
+
+
+android {
+    useLibrary 'org.apache.http.legacy'
 }
