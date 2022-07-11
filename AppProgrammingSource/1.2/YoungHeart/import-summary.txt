@@ -16,9 +16,52 @@ The following files were *not* copied into the new Gradle project; you
 should evaluate whether these are still needed in your project and if
 so manually move them:
 
-From AndroidLib2.3:
+From AndroidLib2.2:
+* .gradle/
+* .gradle/7.1/
+* .gradle/7.1/dependencies-accessors/
+* .gradle/7.1/dependencies-accessors/dependencies-accessors.lock
+* .gradle/7.1/dependencies-accessors/gc.properties
+* .gradle/7.1/fileChanges/
+* .gradle/7.1/fileChanges/last-build.bin
+* .gradle/7.1/fileHashes/
+* .gradle/7.1/fileHashes/fileHashes.lock
+* .gradle/7.1/gc.properties
+* .gradle/checksums/
+* .gradle/checksums/checksums.lock
+* .gradle/vcs-1/
+* .gradle/vcs-1/gc.properties
+* .idea/
+* .idea/.gitignore
+* .idea/encodings.xml
+* .idea/gradle.xml
+* .idea/kotlinc.xml
+* .idea/libraries/
+* .idea/libraries/android_support_v4.xml
+* .idea/misc.xml
+* .idea/modules.xml
+* .idea/vcs.xml
+* .idea/workspace.xml
+* AndroidLib.iml
+* out/
+* out/production/
+* out/production/AndroidLib/
+* out/production/AndroidLib/com/
+* out/production/AndroidLib/com/infrastructure/
+* out/production/AndroidLib/com/infrastructure/activity/
+* out/production/AndroidLib/com/infrastructure/activity/BaseActivity.class
 * proguard-project.txt
-From YoungHeart2.3:
+From YoungHeart2.2:
+* .idea/
+* .idea/encodings.xml
+* .idea/kotlinc.xml
+* .idea/libraries/
+* .idea/libraries/android_support_v4.xml
+* .idea/misc.xml
+* .idea/modules.xml
+* .idea/vcs.xml
+* .idea/workspace.xml
+* YoungHeart.iml
 * proguard-project.txt
 
 Replaced Jars with Dependencies:
@@ -38,15 +81,15 @@ Moved Files:
 Android Gradle projects use a different directory structure than ADT
 Eclipse projects. Here's how the projects were restructured:
 
-In AndroidLib2.3:
-* AndroidManifest.xml => androidLib23/src/main/AndroidManifest.xml
-* res/ => androidLib23/src/main/res/
-* src/ => androidLib23/src/main/java/
-In YoungHeart2.3:
-* AndroidManifest.xml => youngHeart23/src/main/AndroidManifest.xml
-* lint.xml => youngHeart23/lint.xml
-* res/ => youngHeart23/src/main/res/
-* src/ => youngHeart23/src/main/java/
+In AndroidLib2.2:
+* AndroidManifest.xml => androidLib22/src/main/AndroidManifest.xml
+* res/ => androidLib22/src/main/res/
+* src/ => androidLib22/src/main/java/
+In YoungHeart2.2:
+* AndroidManifest.xml => youngHeart22/src/main/AndroidManifest.xml
+* lint.xml => youngHeart22/lint.xml
+* res/ => youngHeart22/src/main/res/
+* src/ => youngHeart22/src/main/java/
 
 Next Steps:
 -----------
