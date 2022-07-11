@@ -1,13 +1,13 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 17
+    compileSdkVersion 32
     buildToolsVersion "30.0.3"
 
     defaultConfig {
         applicationId "com.youngheart"
-        minSdkVersion 8
-        targetSdkVersion 17
+        minSdkVersion 24
+        targetSdkVersion 32
     }
 
     buildTypes {
