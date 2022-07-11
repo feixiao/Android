@@ -19,5 +19,5 @@ android {
 
 dependencies {
     implementation 'com.android.support:support-v4:18.+'
-    implementation files('libs/fastjson_1.1.33.jar')
+    implementation 'com.alibaba:fastjson:1.1.33'
 }
