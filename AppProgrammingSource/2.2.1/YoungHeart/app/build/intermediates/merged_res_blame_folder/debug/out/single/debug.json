@@ -1,0 +1,42 @@
+[
+    {
+        "merged": "com.youngheart.app-merged_res-6:/layout_activity_listdemo.xml.flat",
+        "source": "com.youngheart.app-main-8:/layout/activity_listdemo.xml"
+    },
+    {
+        "merged": "com.youngheart.app-merged_res-6:/drawable-xhdpi_ic_launcher.png.flat",
+        "source": "com.youngheart.app-main-8:/drawable-xhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.youngheart.app-merged_res-6:/layout_activity_personcenter.xml.flat",
+        "source": "com.youngheart.app-main-8:/layout/activity_personcenter.xml"
+    },
+    {
+        "merged": "com.youngheart.app-merged_res-6:/drawable-mdpi_ic_launcher.png.flat",
+        "source": "com.youngheart.app-main-8:/drawable-mdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.youngheart.app-merged_res-6:/layout_activity_login.xml.flat",
+        "source": "com.youngheart.app-main-8:/layout/activity_login.xml"
+    },
+    {
+        "merged": "com.youngheart.app-merged_res-6:/layout_activity_weather.xml.flat",
+        "source": "com.youngheart.app-main-8:/layout/activity_weather.xml"
+    },
+    {
+        "merged": "com.youngheart.app-merged_res-6:/layout_activity_main.xml.flat",
+        "source": "com.youngheart.app-main-8:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.youngheart.app-merged_res-6:/xml_url.xml.flat",
+        "source": "com.youngheart.app-main-8:/xml/url.xml"
+    },
+    {
+        "merged": "com.youngheart.app-merged_res-6:/layout_item_userlist.xml.flat",
+        "source": "com.youngheart.app-main-8:/layout/item_userlist.xml"
+    },
+    {
+        "merged": "com.youngheart.app-merged_res-6:/drawable-hdpi_ic_launcher.png.flat",
+        "source": "com.youngheart.app-main-8:/drawable-hdpi/ic_launcher.png"
+    }
+]

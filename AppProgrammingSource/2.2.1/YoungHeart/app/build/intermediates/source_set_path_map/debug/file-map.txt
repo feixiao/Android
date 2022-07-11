@@ -1,0 +1,9 @@
+com.youngheart.app-packaged_res-0 /Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/androidLib/build/intermediates/packaged_res/debug
+com.youngheart.app-pngs-1 /Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/build/generated/res/pngs/debug
+com.youngheart.app-resValues-2 /Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/build/generated/res/resValues/debug
+com.youngheart.app-rs-3 /Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/build/generated/res/rs/debug
+com.youngheart.app-mergeDebugResources-4 /Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
+com.youngheart.app-mergeDebugResources-5 /Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
+com.youngheart.app-merged_res-6 /Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/build/intermediates/merged_res/debug
+com.youngheart.app-debug-7 /Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/debug/res
+com.youngheart.app-main-8 /Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/res

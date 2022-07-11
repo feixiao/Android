@@ -1,0 +1,6 @@
+com.example.androidlib
+drawable ic_launcher
+string app_name
+style AppBaseTheme
+style AppTheme
+xml url

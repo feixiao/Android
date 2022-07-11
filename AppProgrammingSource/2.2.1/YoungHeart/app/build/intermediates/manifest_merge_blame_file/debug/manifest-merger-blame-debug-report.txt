@@ -1,0 +1,65 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.youngheart"
+4    android:versionCode="1"
+5    android:versionName="1.0" >
+6
+7    <uses-sdk
+7-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:9:5-11:41
+8        android:minSdkVersion="24"
+8-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:10:9-34
+9        android:targetSdkVersion="32" />
+9-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:11:9-38
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:7:5-67
+11-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:7:22-64
+12
+13    <application
+13-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:13:5-37:19
+14        android:name="com.youngheart.engine.YoungHeartApplication"
+14-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:15:9-67
+15        android:allowBackup="true"
+15-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:14:9-35
+16        android:debuggable="true"
+17        android:extractNativeLibs="false"
+18        android:icon="@drawable/ic_launcher"
+18-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:16:9-45
+19        android:label="@string/app_name"
+19-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:17:9-41
+20        android:testOnly="true"
+21        android:theme="@style/AppTheme" >
+21-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:18:9-40
+22        <activity
+22-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:19:9-29:20
+23            android:name="com.youngheart.activity.main.MainActivity"
+23-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:20:13-69
+24            android:exported="true"
+24-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:21:13-36
+25            android:label="@string/app_name"
+25-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:23:13-45
+26            android:screenOrientation="portrait" >
+26-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:22:13-49
+27            <intent-filter>
+27-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:24:13-28:29
+28                <action android:name="android.intent.action.MAIN" />
+28-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:25:17-69
+28-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:25:25-66
+29
+30                <category android:name="android.intent.category.LAUNCHER" />
+30-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:27:17-77
+30-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:27:27-74
+31            </intent-filter>
+32        </activity>
+33        <activity
+33-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:31:9-35:20
+34            android:name="com.youngheart.activity.weather.WeatherByFastJsonActivity"
+34-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:32:13-85
+35            android:screenOrientation="portrait"
+35-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:33:13-49
+36            android:windowSoftInputMode="adjustResize|stateVisible" >
+36-->/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/AndroidManifest.xml:34:13-68
+37        </activity>
+38    </application>
+39
+40</manifest>

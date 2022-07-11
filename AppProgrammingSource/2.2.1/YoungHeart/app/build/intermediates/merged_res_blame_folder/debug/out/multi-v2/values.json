@@ -1,0 +1,96 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.youngheart.app-mergeDebugResources-4:/values/values.xml",
+            "map": [
+                {
+                    "source": "/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/res/values/styles.xml",
+                    "from": {
+                        "startLines": "7,16,20",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "225,549,710",
+                        "endLines": "13,18,24",
+                        "endColumns": "12,12,12",
+                        "endOffsets": "511,704,930"
+                    },
+                    "to": {
+                        "startLines": "20,23,26",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "1139,1222,1294",
+                        "endLines": "22,25,30",
+                        "endColumns": "12,12,12",
+                        "endOffsets": "1217,1289,1514"
+                    }
+                },
+                {
+                    "source": "/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/res/values/strings.xml",
+                    "from": {
+                        "startLines": "2,3,4,5",
+                        "startColumns": "4,4,4,1",
+                        "startOffsets": "55,103,156,212",
+                        "endColumns": "47,52,50,42",
+                        "endOffsets": "98,151,202,253"
+                    },
+                    "to": {
+                        "startLines": "4,11,14,17",
+                        "startColumns": "4,4,4,4",
+                        "startOffsets": "191,649,839,990",
+                        "endColumns": "47,52,50,45",
+                        "endOffsets": "234,697,885,1031"
+                    }
+                },
+                {
+                    "source": "/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/res/values/strings_activity_personcenter.xml",
+                    "from": {
+                        "startLines": "3,2",
+                        "startColumns": "4,4",
+                        "startOffsets": "116,70",
+                        "endColumns": "48,45",
+                        "endOffsets": "160,111"
+                    },
+                    "to": {
+                        "startLines": "6,19",
+                        "startColumns": "4,4",
+                        "startOffsets": "292,1093",
+                        "endColumns": "48,45",
+                        "endOffsets": "336,1134"
+                    }
+                },
+                {
+                    "source": "/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/res/values/strings_activity_main.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "52",
+                        "endOffsets": "103"
+                    },
+                    "to": {
+                        "startLines": "5",
+                        "startColumns": "4",
+                        "startOffsets": "239",
+                        "endColumns": "52",
+                        "endOffsets": "287"
+                    }
+                },
+                {
+                    "source": "/Users/frank/workspace/github/Android/AppProgrammingSource/2.2.1/YoungHeart/app/src/main/res/values/strings_activity_login.xml",
+                    "from": {
+                        "startLines": "7,8,14,13,11,12,10,9,5,6,2",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "213,292,728,648,492,570,420,349,113,160,17",
+                        "endColumns": "78,56,71,79,77,77,71,70,46,52,56",
+                        "endOffsets": "287,344,795,723,565,643,487,415,155,208,69"
+                    },
+                    "to": {
+                        "startLines": "2,3,7,8,9,10,12,13,15,16,18",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,134,341,413,493,571,702,768,890,937,1036",
+                        "endColumns": "78,56,71,79,77,77,65,70,46,52,56",
+                        "endOffsets": "129,186,408,488,566,644,763,834,932,985,1088"
+                    }
+                }
+            ]
+        }
+    ]
+}
