@@ -1,2 +1,1 @@
-include ':androidLib23'
-include ':youngHeart23'
+include ':app'
