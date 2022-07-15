@@ -11,6 +11,21 @@ import android.content.res.XmlResourceParser;
 
 import com.example.androidlib.R;
 
+
+//<?xml version="1.0" encoding="UTF-8"?>
+//<url>
+//<Node
+//Key="getWeatherInfo"
+//		Expires="300"
+//		NetType="get"
+//		Url="http://www.weather.com.cn/data/sk/101010100.html" />
+//<Node
+//Key="login"
+//		Expires="0"
+//		NetType="post"
+//		Url="http://www.weather.com.cn/data/login.api" />
+//</url>
+
 public class UrlConfigManager {
 	private static ArrayList<URLData> urlList;
 
@@ -59,6 +74,7 @@ public class UrlConfigManager {
 		}
 	}
 
+	// 通过UrlConfigManager的findURL方法， 在上述xml文件中找到当前MobileAPI 调用的节点
 	public static URLData findURL(final Activity activity, 
 			final String findKey) {
 		// 如果urlList还没有数据（第一次），或者被回收了，那么（重新）加载xml
