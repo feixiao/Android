@@ -12,7 +12,6 @@
 
 #### 简单例子
 + [《摄像头采集和预览》](https://github.com/feixiao/FboCamera.gi) 使用GLSurfaceView预览摄像头采集画面。
-+ [《OpenGL入门》](https://github.com/feixiao/LearnOpenGL.git)
 + [《OpenGL ES教程》](https://github.com/feixiao/NDK_OpenGLES_3_0)
 + [《media-samples》](https://github.com/feixiao/media-samples)  Multiple samples showing the best practices in media APIs on Android.
 
