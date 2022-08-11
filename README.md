@@ -14,6 +14,7 @@
 + [《摄像头采集和预览》](https://github.com/feixiao/FboCamera.gi) 使用GLSurfaceView预览摄像头采集画面。
 + [《OpenGL ES教程》](https://github.com/feixiao/NDK_OpenGLES_3_0)
 + [《media-samples》](https://github.com/feixiao/media-samples)  Multiple samples showing the best practices in media APIs on Android.
++ [《grafik》](https://github.com/feixiao/grafika) a dumping ground for Android graphics & media hacks.
 
 
 
