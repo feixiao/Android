@@ -1,13 +1,13 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 32
+    compileSdkVersion 29
     buildToolsVersion "30.0.3"
 
     defaultConfig {
         applicationId "com.firstopenglproject.android"
-        minSdkVersion 24
-        targetSdkVersion 32
+        minSdkVersion 21
+        targetSdkVersion 29
     }
 
     buildTypes {
