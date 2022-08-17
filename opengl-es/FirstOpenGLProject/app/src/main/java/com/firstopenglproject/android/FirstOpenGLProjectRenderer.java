@@ -24,7 +24,7 @@ public class FirstOpenGLProjectRenderer implements Renderer {
         // Set the background clear color to red. The first component is
         // red, the second is green, the third is blue, and the last
         // component is alpha, which we don't use in this lesson.
-        glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
+        glClearColor(1.0f, 0.0f, 0.0f, 0.5f);
     }
 
     /**
