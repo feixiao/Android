@@ -23,6 +23,8 @@
 #### 开源项目
 + [android-UniversalMusicPlayer](https://github.com/googlesamples/android-UniversalMusicPlayer)
 + [ijkplayer](https://github.com/feixiao/ijkplayer)
++ [FilterPlayer](https://github.com/feixiao/FilterPlayer) FilterPlayer, using mediaplayer and GLSurfaceView to add filter on videos.
++ [VideoClipEditViewTest](https://github.com/feixiao/VideoClipEditViewTest) 使用android原生的MediaExtractor,MediaCodec和opengl对视频进行编辑, 裁剪,滤镜, 特效
 
 #### UI
 + [Jetpack](https://github.com/android/compose-samples) Official Jetpack Compose samples.
