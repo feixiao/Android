@@ -19,6 +19,10 @@
 + [《grafik》](https://github.com/feixiao/grafika) a dumping ground for Android graphics & media hacks.
 
 
+#### OpenGL
++ [《OpenGLES3.0StudyDemo》](https://github.com/feixiao/OpenGLES3.0StudyDemo) OpenGL例子，有个GLSurface + MediaPlayer
++ [《NDK_OpenGLES_3_0》](https://github.com/feixiao/NDK_OpenGLES_3_0.git)   OpenGL ES 3.0例子
++ [《opengles3-book》](https://github.com/feixiao/opengles3-book.git)       opengles3-book
 
 #### 开源项目
 + [android-UniversalMusicPlayer](https://github.com/googlesamples/android-UniversalMusicPlayer)
