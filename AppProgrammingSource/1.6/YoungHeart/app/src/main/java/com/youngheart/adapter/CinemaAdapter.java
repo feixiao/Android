@@ -54,6 +54,8 @@ public class CinemaAdapter extends BaseAdapter {
 		return convertView;
 	}
 
+	// 内置Holder嵌套类 用于存放 ListView 中每一行中的控件。
+	// ViewHolder的存在，可以避免频繁创建同一个列表项，从而极大地节省内存，
 	class Holder {
 		TextView tvCinemaName;
 		TextView tvCinemaId;

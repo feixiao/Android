@@ -60,7 +60,7 @@ public class LoginNewActivity extends AppBaseActivity {
 
 	@Override
 	protected void loadData() {
-		//获取2个MobileAPI，获取天气数据，获取城市数据
+		// 获取2个MobileAPI，获取天气数据，获取城市数据
 		loadWeatherData();
 		loadCityData();
 	}
