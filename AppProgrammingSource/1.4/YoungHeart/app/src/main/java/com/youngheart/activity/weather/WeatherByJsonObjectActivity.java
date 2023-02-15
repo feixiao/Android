@@ -14,6 +14,7 @@ import org.json.JSONObject;
 
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.TextView;
 
 import com.youngheart.R;
@@ -43,6 +44,8 @@ public class WeatherByJsonObjectActivity extends AppBaseActivity {
 
 	public class WeatherAsyncTask extends AsyncTask<String, Void, String> {
 
+		private String TAG = "WeatherAsyncTask";
+
 		@Override
 		protected void onPreExecute() {
 		}
@@ -57,6 +60,24 @@ public class WeatherByJsonObjectActivity extends AppBaseActivity {
 			// 第一种写法，基于JSONObject
 			try {
 				JSONObject jsonResponse = new JSONObject(result);
+// 			http http://www.weather.com.cn/data/sk/101010100.html
+//				{
+//					"weatherinfo": {
+//					"AP": "1002hPa",
+//							"Radar": "JC_RADAR_AZ9010_JB",
+//							"SD": "28%",
+//							"WD": "南风",
+//							"WS": "小于3级",
+//							"WSE": "<3",
+//							"city": "北京",
+//							"cityid": "101010100",
+//							"isRadar": "1",
+//							"njd": "暂无实况",
+//							"sm": "2.1",
+//							"temp": "27.9",
+//							"time": "17:55"
+//					}
+//				}
 				JSONObject weatherinfo = jsonResponse
 						.getJSONObject("weatherinfo");
 				String city = weatherinfo.getString("city");
@@ -82,11 +103,15 @@ public class WeatherByJsonObjectActivity extends AppBaseActivity {
 				HttpClient httpClient = new DefaultHttpClient(httpParameters);
 
 				HttpResponse httpResponse = httpClient.execute(get);
+
 				if (httpResponse.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+
+					// 解决汉字乱码问题
 					strResponse = EntityUtils
-							.toString(httpResponse.getEntity());
+							.toString(httpResponse.getEntity(), "UTF-8");
 				}
 			} catch (Exception e) {
+				Log.e(TAG, e.toString());
 				return null;
 			}
 

@@ -12,6 +12,7 @@ import org.apache.http.util.EntityUtils;
 
 import android.os.AsyncTask;
 
+// 基于AsyncTask实现RequestAsyncTask
 public abstract class RequestAsyncTask extends AsyncTask<String, Void, Response> {
 	public abstract void onSuccess(String content);
 

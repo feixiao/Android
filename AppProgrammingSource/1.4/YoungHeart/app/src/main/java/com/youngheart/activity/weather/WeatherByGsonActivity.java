@@ -31,6 +31,7 @@ public class WeatherByGsonActivity extends AppBaseActivity {
 	protected void loadData() {
 		String url = "http://www.weather.com.cn/data/sk/101010100.html";
 
+		// 发起Get请求
 		RequestAsyncTask task = new RequestAsyncTask() {
 
 			@Override
