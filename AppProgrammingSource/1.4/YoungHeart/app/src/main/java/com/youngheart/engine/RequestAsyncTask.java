@@ -49,7 +49,8 @@ public abstract class RequestAsyncTask extends AsyncTask<String, Void, Response>
 
 			HttpResponse httpResponse = httpClient.execute(get);
 			if (httpResponse.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
-				strResponse = EntityUtils.toString(httpResponse.getEntity());
+				// 获取返回内容的UTF-8
+				strResponse = EntityUtils.toString(httpResponse.getEntity(), "UTF-8");
 			}
 		} catch (Exception e) {
 			response.setError(true);
