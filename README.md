@@ -8,7 +8,7 @@
     + [代码](./AppProgrammingSource/) 
 + 《Android Jetpack应用指南》
     + [代码](https://github.com/feixiao/JetpackTest)
-
++ [AndroidNote](https://github.com/feixiao/AndroidNote.git)
 #### 视频教程
 + [《Android视频播放器》](http://www.imooc.com/learn/788)
 
