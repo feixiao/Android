@@ -25,6 +25,8 @@ public class MainActivity extends Activity {
 			public void onClick(View v) {
 				Intent intent = new Intent(MainActivity.this,
 						LoginActivity.class);
+
+				// 通过intent传递调用参数
 				intent.putExtra(AppConstants.Email, "jianqiang.bao@qq.com");
 				startActivity(intent);
 			}
