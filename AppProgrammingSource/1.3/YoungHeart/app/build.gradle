@@ -19,6 +19,7 @@ android {
 }
 
 dependencies {
+    // 直接引用工程版本
     implementation project(':androidLib')
     implementation 'com.android.support:support-v4:18.+'
 }
