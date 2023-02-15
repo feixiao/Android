@@ -35,7 +35,8 @@ public class ListDemoActivity extends AppBaseActivity {
 		setContentView(R.layout.activity_listdemo);		
 
 		lvCinemaList = (ListView) findViewById(R.id.lvCinemalist);
-		
+
+		// 演示列表的使用
 		CinemaAdapter adapter = new CinemaAdapter(
 				cinemaList, ListDemoActivity.this);
 		lvCinemaList.setAdapter(adapter);
