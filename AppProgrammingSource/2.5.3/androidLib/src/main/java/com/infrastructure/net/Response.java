@@ -2,7 +2,6 @@ package com.infrastructure.net;
 
 public class Response
 {
-	private boolean error;
 	private int errorType;	//1为Cookie失效
 	private String errorMessage;
 	private String result;
@@ -37,5 +36,6 @@ public class Response
 
 	public void setErrorType(int errorType) {
 		this.errorType = errorType;
-	}
+	}	private boolean error;
+
 }

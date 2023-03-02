@@ -35,6 +35,10 @@ import com.infrastructure.cache.CacheManager;
 import com.infrastructure.utils.BaseUtils;
 import com.infrastructure.utils.FrameConstants;
 
+/**
+ * HttpRequest 是发起 Http 请求的地方，它实现了 Runnable，从而让 DefaultThreadPool 可以分配新的线程来执行它，
+ * 所以，所有的请求逻辑都在 Runnable 接口的 run 方法中
+ * */
 public class HttpRequest implements Runnable {
 	private final static String cookiePath = "/data/data/com.youngheart/cache/cookie";
 	// 区分get还是post的枚举

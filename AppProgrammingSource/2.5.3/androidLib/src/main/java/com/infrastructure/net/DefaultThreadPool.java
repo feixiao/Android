@@ -6,8 +6,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 线程池 、缓冲队列
- * 
+ * DefaultThreadPool 只是对 ThreadPoolExecutor 和 ArrayBlockingQueue 的简单封装。
+ * 我们可以认为它就是一个线程池，每发起一次请求（ runnable），就由线程池分配一个新的线程来执行该请求。
  */
 public class DefaultThreadPool {
 	// 阻塞队列最大任务数量

@@ -13,6 +13,10 @@ import com.infrastructure.net.URLData;
 import com.infrastructure.net.UrlConfigManager;
 import com.youngheart.mockdata.MockService;
 
+/**
+ * RemoteService : 这个是单例是用来发起请求的，它会创建一个 request，并将其添加到RequestManager 中，
+ * 然后放到 DefaultThreadPool 的一个线程中去执行这个 request。
+ * */
 public class RemoteService {
 	private static RemoteService service = null;
 

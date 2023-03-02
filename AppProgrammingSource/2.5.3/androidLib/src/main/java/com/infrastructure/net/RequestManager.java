@@ -5,6 +5,9 @@ import java.util.List;
 
 import com.infrastructure.activity.BaseActivity;
 
+/**
+ * RequestManager 这个集合类是用于取消请求（ cancelRequest）的。
+ * */
 public class RequestManager {
 	ArrayList<HttpRequest> requestList = null;
 

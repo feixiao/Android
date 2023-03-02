@@ -1,5 +1,9 @@
 package com.infrastructure.net;
-
+/**
+ * RequestParameter : 用来传递调用 MobileAPI 接口所需参数的键值对的
+ * 我们原本可以使用 HashMap<String, String> 这样的数据结构，但是 HashMap 比较耗费内存,
+ * 数据不多的情况使用ArrayList<RequestParameter>即可
+ * */
 public class RequestParameter implements java.io.Serializable,
 		Comparable<Object> {
 
