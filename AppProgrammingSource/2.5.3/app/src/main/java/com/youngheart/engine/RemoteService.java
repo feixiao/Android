@@ -30,7 +30,7 @@ public class RemoteService {
 		}
 		return RemoteService.service;
 	}
-
+	// 3: 构建RemoteService，使用invoke发送请求
 	public void invoke(final BaseActivity activity, 
 			final String apiKey,
 			final List<RequestParameter> params, 
@@ -60,8 +60,10 @@ public class RemoteService {
 				e.printStackTrace();
 			}
 		} else {
+			// 2： 创建请求
 			HttpRequest request = activity.getRequestManager().createRequest(
 					urlData, params, callBack);
+
 			DefaultThreadPool.getInstance().execute(request);
 		}
 	}

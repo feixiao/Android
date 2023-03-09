@@ -13,6 +13,8 @@ public abstract class BaseActivity extends Activity {
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
+
+		// 1: 创建RequestManager
 		requestManager = new RequestManager(this);
 
 		super.onCreate(savedInstanceState);
