@@ -41,6 +41,21 @@ void WlListener::onError(int type, int code, const char *msg) {
         JNIEnv *env;
         jvm->AttachCurrentThread(&env, 0);
 
+        jclass list_jcs = env->FindClass("java/util/ArrayList");
+        if (list_jcs == NULL) {
+            LOGE("ArrayList no  find!");
+        }else {
+            LOGD("Could find class, ArrayList");
+        }
+
+
+        jclass person_cls = env->FindClass("com/ywl5320/jnithread/Person");
+        if (person_cls == nullptr) {
+            LOGE("Could not find class, Person");
+        } else {
+            LOGD("Could find class, Person");
+        }
+
         jstring jmsg = env->NewStringUTF(msg);
         env->CallVoidMethod(jobj, jmid, code, jmsg);
         env->DeleteLocalRef(jmsg);
