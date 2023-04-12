@@ -24,6 +24,7 @@ public class JniThread {
     private OnErrorListener onErrorListener;
 
     public void setOnErrorListener(OnErrorListener onErrorListener) {
+
         this.onErrorListener = onErrorListener;
     }
 

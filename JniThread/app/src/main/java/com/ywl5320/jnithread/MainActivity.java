@@ -17,10 +17,15 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Person person = new Person("ywl", 18, "beijing");
+        person.displayInfo();
+
         jniThread = new JniThread();
         jniThread.setOnErrorListener(new JniThread.OnErrorListener() {
             @Override
             public void onError(int code, String msg) {
+
                 Log.d("ywl5320", "code: " + code + ", msg: " + msg);
                 Message message = Message.obtain();
                 message.what = code;

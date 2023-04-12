@@ -48,13 +48,18 @@ void WlListener::onError(int type, int code, const char *msg) {
             LOGD("Could find class, ArrayList");
         }
 
-
-        jclass person_cls = env->FindClass("com/ywl5320/jnithread/Person");
-        if (person_cls == nullptr) {
-            LOGE("Could not find class, Person");
-        } else {
+        jclass personClass = env->FindClass("com/ywl5320/jnithread/Person");
+        if (personClass == NULL) {
+            // 检查是否有异常发生
+            if (env->ExceptionCheck()) {
+                // 输出错误信息
+                env->ExceptionDescribe();
+            }
+        }else {
             LOGD("Could find class, Person");
         }
+
+
 
         jstring jmsg = env->NewStringUTF(msg);
         env->CallVoidMethod(jobj, jmid, code, jmsg);
