@@ -14,3 +14,4 @@
 #### 源码分析
 
 - [android-open-source-project-analysis](https://github.com/feixiao/android-open-source-project-analysis.git)
+- [《Android 操作系统架构》](http://gityuan.com/android/)
