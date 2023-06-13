@@ -1,5 +1,7 @@
 ### AOSP 入门
 
+- [官方文档](https://source.android.google.cn/docs/core/architecture?hl=zh-cn)
+
 #### 小练习
 
 - 编译并运行 AOSP：设置开发环境，下载源代码，编译并运行 AOSP ROM。
