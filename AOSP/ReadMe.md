@@ -1,6 +1,7 @@
 ### AOSP 入门
 
 - [官方文档](https://source.android.google.cn/docs/core/architecture?hl=zh-cn)
+  - [源代码控制工作流程](https://source.android.google.cn/docs/setup/create/coding-tasks?hl=zh-cn)
 
 #### 小练习
 
