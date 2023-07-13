@@ -14,6 +14,11 @@
 - 集成第三方库：将一个开源库集成到 Android 系统中，以实现某项特定功能。
   https://www.jianshu.com/p/8e6649bcf9b3
 
+#### 调试方案
+
+- [《Android - 系统级源码调试 》](https://bbs.kanxue.com/thread-274396.htm)
+- [《Android Kernel 编译与调试指北》](https://juejin.cn/post/7244470938871808058)
+
 #### 源码分析
 
 - [《如何深入学习 Android Framework》](https://github.com/feixiao/AndroidFrameworkTutorial.git)
