@@ -20,6 +20,7 @@
 - [《OpenGL ES 教程》](https://github.com/feixiao/NDK_OpenGLES_3_0)
 - [《media-samples》](https://github.com/feixiao/media-samples) Multiple samples showing the best practices in media APIs on Android.
 - [《grafik》](https://github.com/feixiao/grafika) a dumping ground for Android graphics & media hacks.
+- [《music-video-guide》](https://github.com/zhanxiaokai?tab=repositories) 音视频开发进阶 随书代码
 
 #### Native
 
