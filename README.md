@@ -42,6 +42,7 @@
 #### UI
 
 - [Jetpack](https://github.com/android/compose-samples) Official Jetpack Compose samples.
+- [Android-UI-Development-with-Jetpack-Compos](https://gitee.com/frank2020/Android-UI-Development-with-Jetpack-Compose)
 
 #### 工具
 
