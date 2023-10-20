@@ -42,7 +42,7 @@
 #### UI
 
 - [Jetpack](https://github.com/android/compose-samples) Official Jetpack Compose samples.
-- [《QMUI》](https://github.com/QMUI)
+- [《QMUI》](https://github.com/Tencent/QMUI_Android) 提高 Android UI 开发效率的 UI 库.
 
 #### 工具
 
