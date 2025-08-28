@@ -5,7 +5,7 @@
 
 
 #### Android
-
+连接方式 Config --> ECD ADD --> TCP(填写Android设备IP即可)
 
 
 
