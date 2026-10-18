@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">LiteRT Object Detector (Pixel 10 Edge)</string>
+    <string name="request_camera_permission">本实战 Demo 需要使用摄像头权限以进行 60fps 实时取流与硬件加速目标检测。</string>
+    <string name="grant_permission">授予权限</string>
+    
+    <!-- Controls & Status -->
+    <string name="label_hardware_delegate">硬件加速执行器 (Hardware Delegate)</string>
+    <string name="label_threads">CPU 线程数</string>
+    <string name="label_confidence_threshold">置信度阈值 (Threshold)</string>
+    <string name="label_max_results">最大检出目标数 (Max Results)</string>
+    <string name="label_inference_time">推理延迟</string>
+    <string name="label_fps">流帧率</string>
+    <string name="label_hardware_active">当前硬件</string>
+    
+    <!-- Delegate Names -->
+    <string name="delegate_cpu">CPU</string>
+    <string name="delegate_gpu">GPU (Immortalis OpenCL)</string>
+    <string name="delegate_nnapi">NNAPI / TPU (Tensor G5 Edge TPU)</string>
+    
+    <!-- Models -->
+    <string name="model_efficientdet">EfficientDet-Lite0 (INT8 / FP32)</string>
+    <string name="model_mobilenet">SSD MobileNet V1 (INT8 TPU 特化)</string>
+</resources>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/camera_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <!-- 1. CameraX 实时视频流预览 Surface (60fps) -->
+    <androidx.camera.view.PreviewView
+        android:id="@+id/view_finder"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:scaleType="fillCenter" />
+
+    <!-- 2. AI 目标检测边界框与置信度实时绘制层 -->
+    <com.google.aiedge.objectdetectordemo.views.OverlayView
+        android:id="@+id/overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 3. 顶部半透明浮动状态指示栏 (Floating Status Chip) -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="36dp"
+        android:background="@drawable/hud_card_background"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tv_hud_fps"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="60.0 FPS"
+            android:textColor="@color/primary"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="  |  "
+            android:textColor="#66FFFFFF"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/tv_hud_latency"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="TPU: 4.2ms"
+            android:textColor="@color/bounding_box_stroke"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- 4. 底部动态控制抽屉 (Bottom Sheet) -->
+    <include
+        android:id="@+id/bottom_sheet"
+        layout="@layout/info_bottom_sheet" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

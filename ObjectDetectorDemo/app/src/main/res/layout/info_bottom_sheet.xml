@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/bottom_sheet_layout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/rounded_bottom_sheet"
+    app:behavior_hideable="false"
+    app:behavior_peekHeight="96dp"
+    app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="32dp">
+
+        <!-- Drag Handle Indicator -->
+        <View
+            android:layout_width="48dp"
+            android:layout_height="5dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
+            android:background="#44FFFFFF" />
+
+        <!-- 1. 底部常驻状态栏 (Peek 状态即可见)：打出硬件推理延迟与激活硬件 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/hud_card_background"
+            android:padding="14dp"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_inference_time"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tv_inference_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0.0 ms"
+                    android:textColor="@color/primary"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="36dp"
+                android:background="#33FFFFFF"
+                android:layout_marginEnd="16dp"
+                android:layout_marginStart="16dp" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1.6"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_hardware_active"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tv_active_hardware"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="NNAPI / Edge TPU"
+                    android:textColor="@color/bounding_box_stroke"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 2. 硬件加速执行器下拉切换 (Hardware Delegate) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/label_hardware_delegate"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="6dp" />
+
+        <Spinner
+            android:id="@+id/spinner_delegate"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@drawable/hud_card_background"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 3. CPU 线程数调节 (Threads) -->
+        <LinearLayout
+            android:id="@+id/layout_threads"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/label_threads"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+
+            <ImageButton
+                android:id="@+id/btn_threads_minus"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/hud_card_background"
+                android:src="@android:drawable/ic_delete"
+                android:contentDescription="Decrease Threads"
+                app:tint="@color/primary" />
+
+            <TextView
+                android:id="@+id/tv_threads_value"
+                android:layout_width="48dp"
+                android:layout_height="wrap_content"
+                android:text="4"
+                android:gravity="center"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/btn_threads_plus"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/hud_card_background"
+                android:src="@android:drawable/ic_input_add"
+                android:contentDescription="Increase Threads"
+                app:tint="@color/primary" />
+        </LinearLayout>
+
+        <!-- 4. 置信度阈值调节 (Threshold) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/label_confidence_threshold"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+
+            <ImageButton
+                android:id="@+id/btn_threshold_minus"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/hud_card_background"
+                android:src="@android:drawable/ic_delete"
+                android:contentDescription="Decrease Threshold"
+                app:tint="@color/primary" />
+
+            <TextView
+                android:id="@+id/tv_threshold_value"
+                android:layout_width="48dp"
+                android:layout_height="wrap_content"
+                android:text="0.50"
+                android:gravity="center"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/btn_threshold_plus"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/hud_card_background"
+                android:src="@android:drawable/ic_input_add"
+                android:contentDescription="Increase Threshold"
+                app:tint="@color/primary" />
+        </LinearLayout>
+
+        <!-- 5. 最大目标数量调节 (Max Results) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/label_max_results"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+
+            <ImageButton
+                android:id="@+id/btn_results_minus"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/hud_card_background"
+                android:src="@android:drawable/ic_delete"
+                android:contentDescription="Decrease Results"
+                app:tint="@color/primary" />
+
+            <TextView
+                android:id="@+id/tv_results_value"
+                android:layout_width="48dp"
+                android:layout_height="wrap_content"
+                android:text="5"
+                android:gravity="center"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/btn_results_plus"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/hud_card_background"
+                android:src="@android:drawable/ic_input_add"
+                android:contentDescription="Increase Results"
+                app:tint="@color/primary" />
+        </LinearLayout>
+
+        <!-- 6. 模型选择 (Model Selection) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="选择视觉模型 (Vision Model)"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="6dp" />
+
+        <Spinner
+            android:id="@+id/spinner_model"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@drawable/hud_card_background"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp" />
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

@@ -53,3 +53,7 @@
 
 - [native 内存分析与监控](https://cloud.tencent.com/developer/article/1817357)
 - [perfetto](./perfetto/ReadMe.md)
+
+#### 端侧 AI / 移动边缘计算
+
+- [ObjectDetectorDemo](./ObjectDetectorDemo/README.md) 基于 CameraX 与 LiteRT / MediaPipe 模式的实时目标检测应用（附开源上游对比说明 [OPEN_SOURCE_DEMOS.md](./ObjectDetectorDemo/OPEN_SOURCE_DEMOS.md)）
