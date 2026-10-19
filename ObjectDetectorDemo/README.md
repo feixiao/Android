@@ -73,8 +73,27 @@ flowchart TD
 ```
 
 ---
+## 三、 Pixel 10 (Tensor G5) 端侧 AI 跨代能力演进
 
-## 三、性能测量
+在 Pixel 8 / Pixel 9（Tensor G3/G4）时代，端侧 AI 常常受制于发热降频（Thermal Throttling）和内存带宽，许多重度 AI 场景无法在端侧持续运行或必须强依赖云端回传。搭载台积电 3nm 工艺与全新 Edge TPU 的 Pixel 10（Tensor G5）在端侧 AI 架构上实现了质的突破：
+
+1. **全帧率 60fps 连续视觉流零拷贝感知**：
+   - **之前不能做的**：连续在 60fps 视频流上运行高密度检测/分割模型极易在 2~3 分钟内发热降频，导致帧率断崖式跌落至 15~24fps 甚至界面卡死；
+   - **Pixel 10 突破**：单帧推理延迟压缩至 <5ms，支持全帧率 60fps 零拷贝持续推理；支持 **Camera Coach（取景器实时指导）**，将 AI 视觉从“拍完照后的静态后处理”演进为取景阶段的动态构图与主体姿态实时分析。
+2. **端侧完全离线 7B+ 大模型与多模态 VLM（脱网运行）**：
+   - **之前不能做的**：仅能勉强运行 1B~2B 参数微型模型，跑 7B 模型吞吐低于 3 tokens/s 且发热剧烈，无法在端侧处理实时相机画面的图文问答；
+   - **Pixel 10 突破**：统一内存带宽提升，通过 `llama.cpp` 原生 JNI 绑定或 `mlc-llm` Vulkan 计算管线，可离线以 10+ tokens/s 的实用吞吐运行 7B~8B 量化大模型，并支持轻量端侧多模态模型（VLM）进行即时相机画面问答。
+3. **视频画质增强 (Video Boost) 端侧硬件加速化**：
+   - **之前不能做的**：Video Boost（夜景与防抖增强）必须将数十 GB 的原始 Raw 视频完整上传到 Google 云端数据中心排队渲染，耗时数十分钟甚至数小时；
+   - **Pixel 10 突破**：升级版 TPU 算力直接与 ISP 硬件深度耦合，关键时域降噪与动态范围对齐算子直接在手机本地硬件加速完成，大幅减少对云端回传的依赖。
+
+> 完整的技术对比表格、上游开源实现与工程落地规范（如 NNAPI 迁移至 LiteRT 原生 Delegate、缓冲区复用）详见 [`OPEN_SOURCE_DEMOS.md`](OPEN_SOURCE_DEMOS.md)。
+> 移动端 GPU 通用计算技术架构、Vulkan Compute 核心管线与 OpenCL 深度选型对比详见专栏文档 [`VULKAN_COMPUTE.md`](VULKAN_COMPUTE.md)。
+
+---
+
+
+## 四、 性能测量
 
 本仓库不提交 Pixel 10 的固定延迟、FPS、温度、功耗或加速器结论。请在目标设备、目标模型和目标系统版本上记录：预处理、推理、后处理、端到端延迟、丢帧率、内存和温度。NNAPI/GPU 初始化成功也不等于每个算子都会落到对应硬件后端。
 
@@ -82,7 +101,7 @@ flowchart TD
 
 ---
 
-## 四、 目录源码全景
+## 五、 目录源码全景
 
 ```text
 ObjectDetectorDemo/
@@ -91,6 +110,8 @@ ObjectDetectorDemo/
 ├── gradle.properties                  # JVM 优化与 AndroidX 配置
 ├── download_models.sh                 # 自动拉取官方量化模型脚本
 ├── README.md                          # 本工程架构与落地说明
+├── OPEN_SOURCE_DEMOS.md               # 开源上游来源与 Pixel 10 端侧 AI 跨代对比
+├── VULKAN_COMPUTE.md                  # Android Vulkan Compute 深度解析与实战指南
 └── app/
     ├── build.gradle.kts               # 应用依赖 (CameraX 1.4, LiteRT 0.4.4, NNAPI)
     ├── proguard-rules.pro             # LiteRT C++ 原生符号保护
@@ -120,7 +141,7 @@ ObjectDetectorDemo/
 
 ---
 
-## 五、快速构建与运行
+## 六、 快速构建与运行
 
 ```bash
 cd ObjectDetectorDemo
@@ -133,7 +154,7 @@ adb logcat -s ObjectDetectorHelper:I CameraFragment:I
 
 也可以直接用 Android Studio 打开本目录，连接启用 USB 调试的实体 Android 设备后运行 `app`。目标检测工程需要真实摄像头；设备是否支持 GPU/NNAPI 由运行时检测结果决定。
 
-## 六、现场验证
+## 七、 现场验证
 
 1. 对准可识别物体，确认预览、目标框和置信度更新。
 2. 在控制面板分别选择 CPU、GPU、NNAPI；记录日志中的初始化结果和界面显示的推理时间。

@@ -56,4 +56,5 @@
 
 #### 端侧 AI / 移动边缘计算
 
-- [ObjectDetectorDemo](./ObjectDetectorDemo/README.md) 基于 CameraX 与 LiteRT / MediaPipe 模式的实时目标检测应用（附开源上游对比说明 [OPEN_SOURCE_DEMOS.md](./ObjectDetectorDemo/OPEN_SOURCE_DEMOS.md)）
+- [ObjectDetectorDemo](./ObjectDetectorDemo/README.md) 基于 CameraX 与 LiteRT / MediaPipe 模式的实时目标检测应用（涵盖 Pixel 10 / Tensor G5 端侧 AI 跨代能力演进与 [OPEN_SOURCE_DEMOS.md](./ObjectDetectorDemo/OPEN_SOURCE_DEMOS.md) 开源方案对比）
+- [Vulkan Compute 深度解析与实战指南](./ObjectDetectorDemo/VULKAN_COMPUTE.md) Android 平台 Vulkan 通用计算体系：工业界现状（MLC-LLM / NCNN）、纯计算管线架构、GLSL/SPIR-V 着色器、Camera 零拷贝直通与 Vulkan vs OpenCL 深度选型对比
