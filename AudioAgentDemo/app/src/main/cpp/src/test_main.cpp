@@ -792,6 +792,133 @@ static void TestMultiTurnDialogue() {
     LogPass("Multi-Turn Full-Duplex Dialogue Continuity passed.");
 }
 
+class TestModelPerceptionEngine : public ISpeechPerceptionEngine {
+public:
+    bool AcceptAudioChunk(const float* samples, int32_t count) override {
+        float energy = 0.0f;
+        for (int i = 0; i < count; ++i) energy += std::abs(samples[i]);
+        float avg_energy = count > 0 ? (energy / count) : 0.0f;
+        bool is_voice = avg_energy > 0.035f;
+        if (is_voice) {
+            speech_frames_++;
+            silence_frames_ = 0;
+            if (speech_frames_ >= 3) {
+                in_speech_ = true;
+                endpoint_ = false;
+            }
+        } else {
+            if (in_speech_) {
+                silence_frames_++;
+                if (silence_frames_ >= 5) {
+                    endpoint_ = true;
+                    in_speech_ = false;
+                    recorded_frames_ = speech_frames_;
+                    speech_frames_ = 0;
+                    silence_frames_ = 0;
+                }
+            }
+        }
+        return is_voice;
+    }
+
+    bool IsEndpointDetected() override {
+        return endpoint_;
+    }
+
+    std::string GetRecognizedText(bool is_final) override {
+        if (is_final) {
+            endpoint_ = false;
+            if (has_local_model_ && recorded_frames_ >= 3) {
+                recorded_frames_ = 0;
+                return "今天外面天气怎么样？";
+            }
+            recorded_frames_ = 0;
+            return "";
+        }
+        return in_speech_ ? (has_local_model_ ? "正在倾听并识别语音..." : "正在倾听...") : "";
+    }
+
+    void SetModelPath(const std::string& path) override {
+        model_path_ = path;
+        has_local_model_ = !path.empty();
+    }
+
+    void Reset() override {
+        endpoint_ = false;
+        in_speech_ = false;
+        speech_frames_ = 0;
+        silence_frames_ = 0;
+    }
+
+    bool HasLocalModel() const { return has_local_model_; }
+    const std::string& GetModelPath() const { return model_path_; }
+
+private:
+    std::string model_path_;
+    bool has_local_model_{false};
+    bool endpoint_{false};
+    bool in_speech_{false};
+    int speech_frames_{0};
+    int silence_frames_{0};
+    int recorded_frames_{0};
+};
+
+static void TestModelConfigurationAndPerception() {
+    LogTest("On-Device Model Configuration & Perception Engine");
+
+    auto perception = std::make_shared<TestModelPerceptionEngine>();
+    auto llm = std::make_shared<SimulatedLlmEngine>();
+    auto tts = std::make_shared<SimulatedTtsEngine>();
+
+    AudioAgentPipeline pipeline(perception, llm, tts);
+
+    // Initial state: no local model configured
+    assert(!perception->HasLocalModel());
+    assert(perception->GetModelPath().empty());
+
+    // Configure model path via pipeline
+    const std::string test_path = "/data/user/0/com.ai.audioagent/files/models/asr";
+    pipeline.SetModelPath(test_path);
+    assert(perception->HasLocalModel());
+    assert(perception->GetModelPath() == test_path);
+
+    // Feed audio chunks without voice
+    std::vector<float> silence(512, 0.005f);
+    assert(!perception->AcceptAudioChunk(silence.data(), silence.size()));
+    assert(!perception->IsEndpointDetected());
+
+    // Feed speech audio chunks
+    std::vector<float> speech(512, 0.12f);
+    for (int i = 0; i < 4; ++i) {
+        perception->AcceptAudioChunk(speech.data(), speech.size());
+    }
+    assert(perception->GetRecognizedText(false) == "正在倾听并识别语音...");
+
+    // Feed silence to trigger endpoint
+    for (int i = 0; i < 6; ++i) {
+        perception->AcceptAudioChunk(silence.data(), silence.size());
+    }
+    assert(perception->IsEndpointDetected());
+    std::string final_query = perception->GetRecognizedText(true);
+    assert(final_query == "今天外面天气怎么样？");
+
+    // Unset model path
+    pipeline.SetModelPath("");
+    assert(!perception->HasLocalModel());
+
+    // Trigger speech again, without model
+    for (int i = 0; i < 4; ++i) {
+        perception->AcceptAudioChunk(speech.data(), speech.size());
+    }
+    for (int i = 0; i < 6; ++i) {
+        perception->AcceptAudioChunk(silence.data(), silence.size());
+    }
+    assert(perception->IsEndpointDetected());
+    assert(perception->GetRecognizedText(true).empty());
+
+    LogPass("On-Device Model Configuration and Perception passed.");
+}
+
 int main() {
     std::cout << "\n=======================================================\n";
     std::cout << "  Android AI Audio Agent C++17 Unit Test Suite\n";
@@ -830,6 +957,9 @@ int main() {
     TestCpuAffinity();
     std::cout << std::endl;
 
-    std::cout << COLOR_GREEN << "ALL 11 TEST SUITES PASSED SUCCESSFULLY!" << COLOR_RESET << "\n\n";
+    TestModelConfigurationAndPerception();
+    std::cout << std::endl;
+
+    std::cout << COLOR_GREEN << "ALL 12 TEST SUITES PASSED SUCCESSFULLY!" << COLOR_RESET << "\n\n";
     return 0;
 }

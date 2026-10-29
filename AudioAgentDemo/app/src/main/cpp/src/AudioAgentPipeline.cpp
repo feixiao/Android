@@ -162,6 +162,12 @@ void AudioAgentPipeline::OnThermalStatusChanged(int thermal_status) {
     }
 }
 
+void AudioAgentPipeline::SetModelPath(const std::string& path) {
+    if (perception_engine_) {
+        perception_engine_->SetModelPath(path);
+    }
+}
+
 void AudioAgentPipeline::PerceptionWorkerLoop() {
     // Bind perception thread to efficiency little cores (<150mW power budget)
     BindThreadToLittleCores(2);

@@ -71,6 +71,13 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
             return false
         }
 
+        // Auto-configure on-device ASR model if downloaded
+        if (ModelManager.isModelReady(appContext)) {
+            val modelDir = ModelManager.getModelDir(appContext)
+            nativeEngine.setModelPath(modelDir.absolutePath)
+            Log.i(TAG, "Configured on-device ASR models: ${modelDir.absolutePath}")
+        }
+
         val started = nativeEngine.start()
         if (started) {
             isRunning = true
@@ -94,6 +101,10 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
 
     fun submitUserQuery(query: String) {
         nativeEngine.submitUserQuery(query)
+    }
+
+    fun setModelPath(path: String) {
+        nativeEngine.setModelPath(path)
     }
 
     fun getPerformanceCores(): List<Int> {

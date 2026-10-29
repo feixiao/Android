@@ -82,6 +82,9 @@ public:
     // Set thermal throttling state: adjust tokens & threads if phone heats up (Section 6.3)
     void OnThermalStatusChanged(int thermal_status);
 
+    // Set on-device ASR model path (e.g. Sherpa-onnx Zipformer)
+    void SetModelPath(const std::string& path);
+
     AgentState GetState() const {
         return state_.load(std::memory_order_acquire);
     }

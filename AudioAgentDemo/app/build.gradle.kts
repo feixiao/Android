@@ -65,6 +65,7 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
 
     // Oboe Audio Foundation (Hardware DSP AEC & NS per Section 2.2)
     implementation("com.google.oboe:oboe:1.9.0")

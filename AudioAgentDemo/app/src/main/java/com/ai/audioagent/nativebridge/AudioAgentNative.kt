@@ -102,6 +102,15 @@ class AudioAgentNative(private val listener: AudioAgentListener? = null) {
     }
 
     /**
+     * Configures on-device ASR model weights path (Sherpa-onnx Zipformer)
+     */
+    fun setModelPath(modelPath: String) {
+        if (nativeHandle != 0L) {
+            nativeSetModelPath(nativeHandle, modelPath)
+        }
+    }
+
+    /**
      * Cleans up and destroys native pipeline instance
      */
     fun destroy() {
@@ -161,6 +170,7 @@ class AudioAgentNative(private val listener: AudioAgentListener? = null) {
     private external fun nativeSubmitUserQuery(handle: Long, query: String)
     private external fun nativeGetState(handle: Long): Int
     private external fun nativeOnThermalChanged(handle: Long, thermalStatus: Int)
+    private external fun nativeSetModelPath(handle: Long, modelPath: String)
     private external fun nativeDestroy(handle: Long)
 
     companion object {

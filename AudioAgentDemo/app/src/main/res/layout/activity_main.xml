@@ -109,6 +109,61 @@
             android:textSize="11sp" />
     </LinearLayout>
 
+    <!-- On-Device Model Management Card -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@color/surface_card"
+        android:orientation="vertical"
+        android:padding="10dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🤖 端侧离线 ASR 语音模型 (Sherpa-onnx)"
+                android:textColor="@color/text_primary"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnModelAction"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:backgroundTint="@color/primary_accent"
+                android:paddingHorizontal="10dp"
+                android:text="📥 下载模型 (31MB)"
+                android:textColor="@color/black"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvModelStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="状态: ❌ 未安装离线模型 (当前处于轻量参考模式)"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+
+        <ProgressBar
+            android:id="@+id/pbModelDownload"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_marginTop="6dp"
+            android:max="100"
+            android:visibility="gone" />
+    </LinearLayout>
+
     <!-- Dialogue Stream Box -->
     <LinearLayout
         android:layout_width="match_parent"

@@ -1,6 +1,6 @@
 # Android 全双工 AI Audio Agent 深度实战工程 Demo
 
-本项目是基于白皮书 [《Android 端侧全双工 AI Audio Agent 深度工程实战白皮书》](../../android_ai_agent.md) 的完整工业级参考实现，实现了 **Oboe + Sherpa-onnx + MNN-LLM** 级联流水线的核心底层与 Android 应用层架构。
+本项目是基于白皮书 [《Android 端侧全双工 AI Audio Agent 深度工程实战白皮书》](docs/Android%20端侧全双工%20AI%20Audio%20Agent%20深度工程实战白皮书.md) 的完整工业级参考实现，实现了 **Oboe + Sherpa-onnx + MNN-LLM** 级联流水线的核心底层与 Android 应用层架构。
 
 ---
 

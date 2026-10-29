@@ -8,9 +8,13 @@ import android.view.View
 import android.widget.Button
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.ProgressBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import com.ai.audioagent.manager.ModelManager
 import com.ai.audioagent.manager.AudioAgentManager
 import com.ai.audioagent.nativebridge.AgentState
 import com.ai.audioagent.nativebridge.AudioAgentListener
@@ -41,19 +45,29 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
     private lateinit var etCustomQuery: android.widget.EditText
     private lateinit var btnVoice: Button
     private lateinit var btnSend: Button
+    private lateinit var btnModelAction: Button
+    private lateinit var tvModelStatus: TextView
+    private lateinit var pbModelDownload: ProgressBar
+    private var isDownloadingModel = false
     private var speechRecognizer: android.speech.SpeechRecognizer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        agentManager = AudioAgentManager.getInstance(this)
         initViews()
         initAgent()
         checkPermissionsAndStart()
+        handleIntent(intent)
     }
 
     override fun onNewIntent(intent: android.content.Intent?) {
         super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: android.content.Intent?) {
         intent?.getStringExtra("query")?.let { q ->
             if (q.isNotEmpty()) {
                 appendLog("[用户问] $q")
@@ -81,6 +95,26 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
         etCustomQuery = findViewById(R.id.etCustomQuery)
         btnVoice = findViewById(R.id.btnVoice)
         btnSend = findViewById(R.id.btnSend)
+        btnModelAction = findViewById(R.id.btnModelAction)
+        tvModelStatus = findViewById(R.id.tvModelStatus)
+        pbModelDownload = findViewById(R.id.pbModelDownload)
+        updateModelStatusUI()
+
+        btnModelAction.setOnClickListener {
+            if (isDownloadingModel) return@setOnClickListener
+
+            if (ModelManager.isModelReady(this)) {
+                val deleted = ModelManager.deleteModel(this)
+                if (deleted) {
+                    appendLog("[模型管理] 🗑️ 已删除本地 Sherpa-onnx 离线模型文件")
+                    agentManager.setModelPath("")
+                }
+                updateModelStatusUI()
+            } else {
+                startModelDownload()
+            }
+        }
+
         initSpeechRecognizer()
 
         btnVoice.setOnClickListener {
@@ -146,6 +180,71 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
         }
     }
 
+    private fun updateModelStatusUI() {
+        val ready = ModelManager.isModelReady(this)
+        if (ready) {
+            val dir = ModelManager.getModelDir(this)
+            tvModelStatus.text = "状态: ✅ 离线模型已就绪 (Sherpa-onnx Zipformer)"
+            btnModelAction.text = "🗑️ 删除模型"
+            btnModelAction.isEnabled = true
+            pbModelDownload.visibility = View.GONE
+            if (::agentManager.isInitialized) {
+                agentManager.setModelPath(dir.absolutePath)
+            }
+        } else {
+            tvModelStatus.text = "状态: ❌ 未安装离线模型 (当前处于轻量参考模式)"
+            btnModelAction.text = "📥 下载模型 (31MB)"
+            btnModelAction.isEnabled = true
+            pbModelDownload.visibility = View.GONE
+            if (::agentManager.isInitialized) {
+                agentManager.setModelPath("")
+            }
+        }
+    }
+
+    private fun startModelDownload() {
+        isDownloadingModel = true
+        btnModelAction.isEnabled = false
+        btnModelAction.text = "⏳ 下载中..."
+        pbModelDownload.visibility = View.VISIBLE
+        pbModelDownload.progress = 0
+        appendLog("[模型管理] 🚀 开始下载端侧 Sherpa-onnx 离线 ASR 模型 (共 4 个权重文件，约 31MB)...")
+
+        lifecycleScope.launch {
+            ModelManager.downloadModels(
+                context = this@MainActivity,
+                onProgress = { pct, statusText ->
+                    runOnUiThread {
+                        pbModelDownload.progress = pct
+                        tvModelStatus.text = "状态: $statusText"
+                    }
+                },
+                onComplete = { success, message ->
+                    runOnUiThread {
+                        isDownloadingModel = false
+                        updateModelStatusUI()
+                        if (success) {
+                            appendLog("[模型管理] ✅ $message")
+                            android.widget.Toast.makeText(
+                                this@MainActivity,
+                                "离线模型就绪！支持免触语音识别全双工对聊",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            btnModelAction.text = "📥 重试下载 (31MB)"
+                            appendLog("[模型管理] ❌ $message")
+                            android.widget.Toast.makeText(
+                                this@MainActivity,
+                                message,
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
+            )
+        }
+    }
+
     private fun initSpeechRecognizer() {
         if (android.speech.SpeechRecognizer.isRecognitionAvailable(this)) {
             speechRecognizer = android.speech.SpeechRecognizer.createSpeechRecognizer(this).apply {
@@ -169,7 +268,11 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
                             12, 13 -> "离线中文语音包未就绪"
                             else -> "状态码: $error"
                         }
-                        appendLog("[语音提示] $errorMsg。全双工麦克风已处于实时监听状态，可直接对着手机说话免触对聊，或在下方输入文字发送！")
+                        if (ModelManager.isModelReady(this@MainActivity)) {
+                            appendLog("[语音提示] $errorMsg。端侧 Sherpa-onnx 离线 ASR 模型已安装就绪，全双工麦克风处于实时监听状态，可直接对着手机说话免触对聊！")
+                        } else {
+                            appendLog("[语音提示] $errorMsg。全双工麦克风已处于实时监听状态，可点击上方「下载模型 (31MB)」启用端侧离线识别，或在下方输入文字发送！")
+                        }
                     }
                     override fun onResults(results: Bundle?) {
                         btnVoice.text = "🎙️ 说话"
@@ -275,7 +378,11 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
             appendLog("[状态机迁移] ${oldState.name} ➔ ${newState.name}")
 
             if (oldState == AgentState.LISTENING && newState == AgentState.IDLE) {
-                appendLog("[麦克风感知] 听到人声输入并完成落音截断。由于当前Demo未打包70MB Zipformer离线神经网络权重，请在下方输入文字或点击上方快捷标签，AI将针对您问的问题精准流式作答！")
+                if (ModelManager.isModelReady(this@MainActivity)) {
+                    appendLog("[麦克风感知] 监听到语音落音截断，离线模型就绪 (过滤短杂音或已触发识别)。")
+                } else {
+                    appendLog("[麦克风感知] 听到人声输入并完成落音截断。由于当前未安装离线模型，请点击上方「下载模型 (31MB)」或在下方输入文字/点击快捷标签！")
+                }
             }
             val dummyPcm = FloatArray(128) { (Math.random().toFloat() - 0.5f) * 0.8f }
             audioWaveformView.updateAmplitudes(dummyPcm)

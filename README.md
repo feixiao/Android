@@ -58,3 +58,4 @@
 
 - [ObjectDetectorDemo](./ObjectDetectorDemo/README.md) 基于 CameraX 与 LiteRT / MediaPipe 模式的实时目标检测应用（涵盖 Pixel 10 / Tensor G5 端侧 AI 跨代能力演进与 [OPEN_SOURCE_DEMOS.md](./ObjectDetectorDemo/OPEN_SOURCE_DEMOS.md) 开源方案对比）
 - [Vulkan Compute 深度解析与实战指南](./ObjectDetectorDemo/VULKAN_COMPUTE.md) Android 平台 Vulkan 通用计算体系：工业界现状（MLC-LLM / NCNN）、纯计算管线架构、GLSL/SPIR-V 着色器、Camera 零拷贝直通与 Vulkan vs OpenCL 深度选型对比
+- [AudioAgentDemo](./AudioAgentDemo/README.md) 基于 Oboe + Sherpa-onnx + MNN-LLM 的 Android 端侧全双工 AI 语音 Agent（附白皮书：[《Android 端侧全双工 AI Audio Agent 深度工程实战白皮书》](./AudioAgentDemo/docs/Android%20端侧全双工%20AI%20Audio%20Agent%20深度工程实战白皮书.md)）

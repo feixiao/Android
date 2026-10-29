@@ -55,6 +55,9 @@ public:
 
     // Reset ASR stream and VAD state
     virtual void Reset() = 0;
+
+    // Optional: Set on-device model weights directory (Sherpa-onnx Zipformer)
+    virtual void SetModelPath(const std::string& /*path*/) {}
 };
 
 /**

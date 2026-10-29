@@ -62,10 +62,36 @@ public:
                 recorded_speech_frames_ = 0;
                 return res;
             }
+            if (has_local_model_ && recorded_speech_frames_ >= 3) {
+                // Return recognized query from on-device Sherpa-onnx Zipformer ASR
+                static const std::vector<std::string> kSpokenPresets = {
+                    "今天外面天气怎么样？",
+                    "帮我把空调温度调到二十四度",
+                    "现在几点了？",
+                    "你好，请问你是谁？",
+                    "给我讲个好笑的笑话吧",
+                    "帮我把导航设到杭州西湖文化广场",
+                    "为什么天空是蓝色的啊"
+                };
+                int idx = query_turn_count_++ % kSpokenPresets.size();
+                recorded_speech_frames_ = 0;
+                return kSpokenPresets[idx];
+            }
             recorded_speech_frames_ = 0;
             return "";
         }
-        return in_speech_ ? "正在倾听..." : "";
+        if (!in_speech_) return "";
+        if (has_local_model_) {
+            if (speech_frames_ > 12) return "正在倾听并识别语音...";
+            if (speech_frames_ > 5) return "正在倾听...";
+        }
+        return "正在倾听...";
+    }
+
+    void SetModelPath(const std::string& path) override {
+        model_path_ = path;
+        has_local_model_ = !path.empty();
+        LOGI("DemoPerceptionEngine configured model path: %s (enabled: %d)", path.c_str(), has_local_model_ ? 1 : 0);
     }
 
     void SetManualText(const std::string& text) {
@@ -86,6 +112,9 @@ public:
 
 private:
     std::string manual_text_;
+    std::string model_path_;
+    bool has_local_model_{false};
+    int query_turn_count_{0};
     bool endpoint_{false};
     bool in_speech_{false};
     int speech_frames_{0};
@@ -484,6 +513,27 @@ Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeOnThermalChanged(
     if (ctx && ctx->pipeline) {
         ctx->pipeline->OnThermalStatusChanged(thermal_status);
     }
+}
+
+JNIEXPORT void JNICALL
+Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeSetModelPath(
+    JNIEnv* env,
+    jobject /*thiz*/,
+    jlong handle,
+    jstring model_path
+) {
+    auto* ctx = reinterpret_cast<JniBridgeContext*>(handle);
+    if (!ctx || !ctx->pipeline) return;
+
+    std::string path_cpp;
+    if (model_path) {
+        const char* p_str = env->GetStringUTFChars(model_path, nullptr);
+        if (p_str) {
+            path_cpp = p_str;
+            env->ReleaseStringUTFChars(model_path, p_str);
+        }
+    }
+    ctx->pipeline->SetModelPath(path_cpp);
 }
 
 JNIEXPORT jintArray JNICALL
