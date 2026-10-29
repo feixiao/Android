@@ -31,9 +31,13 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
     private lateinit var tvToolCallBanner: TextView
     private lateinit var scrollView: ScrollView
     private lateinit var btnBargeIn: Button
+    private lateinit var btnWhoPrompt: Button
+    private lateinit var btnWeatherPrompt: Button
     private lateinit var btnNavPrompt: Button
     private lateinit var btnAcPrompt: Button
+    private lateinit var btnJokePrompt: Button
     private lateinit var btnSkyPrompt: Button
+    private lateinit var btnTimePrompt: Button
     private lateinit var etCustomQuery: android.widget.EditText
     private lateinit var btnVoice: Button
     private lateinit var btnSend: Button
@@ -67,15 +71,26 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
         tvToolCallBanner = findViewById(R.id.tvToolCallBanner)
         scrollView = findViewById(R.id.scrollView)
         btnBargeIn = findViewById(R.id.btnBargeIn)
+        btnWhoPrompt = findViewById(R.id.btnWhoPrompt)
+        btnWeatherPrompt = findViewById(R.id.btnWeatherPrompt)
         btnNavPrompt = findViewById(R.id.btnNavPrompt)
         btnAcPrompt = findViewById(R.id.btnAcPrompt)
+        btnJokePrompt = findViewById(R.id.btnJokePrompt)
         btnSkyPrompt = findViewById(R.id.btnSkyPrompt)
+        btnTimePrompt = findViewById(R.id.btnTimePrompt)
         etCustomQuery = findViewById(R.id.etCustomQuery)
         btnVoice = findViewById(R.id.btnVoice)
         btnSend = findViewById(R.id.btnSend)
         initSpeechRecognizer()
 
         btnVoice.setOnClickListener {
+            val customText = etCustomQuery.text.toString().trim()
+            if (customText.isNotEmpty()) {
+                appendLog("[用户问] $customText")
+                agentManager.submitUserQuery(customText)
+                etCustomQuery.setText("")
+                return@setOnClickListener
+            }
             startSpeechRecognition()
         }
         btnBargeIn.setOnClickListener {
@@ -83,21 +98,39 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
             appendLog("[用户] ⚡ 手动触发 Barge-in 硬件级打断！")
         }
 
-        // Quick simulation prompts matching Section 5.2
+        // Rich quick dialogue prompts
+        btnWhoPrompt.setOnClickListener {
+            val q = "你好，请问你是谁？"
+            appendLog("[用户问] $q")
+            agentManager.submitUserQuery(q)
+        }
+        btnWeatherPrompt.setOnClickListener {
+            val q = "今天外面天气怎么样？"
+            appendLog("[用户问] $q")
+            agentManager.submitUserQuery(q)
+        }
         btnNavPrompt.setOnClickListener {
             val q = "帮我把导航设到杭州西湖文化广场"
             appendLog("[用户问] $q")
             agentManager.submitUserQuery(q)
         }
-
         btnAcPrompt.setOnClickListener {
             val q = "把空调温度调到二十四度"
             appendLog("[用户问] $q")
             agentManager.submitUserQuery(q)
         }
-
+        btnJokePrompt.setOnClickListener {
+            val q = "给我讲个好笑的笑话吧"
+            appendLog("[用户问] $q")
+            agentManager.submitUserQuery(q)
+        }
         btnSkyPrompt.setOnClickListener {
             val q = "为什么天空是蓝色的啊"
+            appendLog("[用户问] $q")
+            agentManager.submitUserQuery(q)
+        }
+        btnTimePrompt.setOnClickListener {
+            val q = "现在几点了？"
             appendLog("[用户问] $q")
             agentManager.submitUserQuery(q)
         }
@@ -129,6 +162,14 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
                     }
                     override fun onError(error: Int) {
                         btnVoice.text = "🎙️ 说话"
+                        val errorMsg = when (error) {
+                            android.speech.SpeechRecognizer.ERROR_NETWORK,
+                            android.speech.SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "系统语音网络未连接"
+                            android.speech.SpeechRecognizer.ERROR_NO_MATCH -> "未匹配到清晰语音"
+                            12, 13 -> "离线中文语音包未就绪"
+                            else -> "状态码: $error"
+                        }
+                        appendLog("[语音提示] $errorMsg。全双工麦克风已处于实时监听状态，可直接对着手机说话免触对聊，或在下方输入文字发送！")
                     }
                     override fun onResults(results: Bundle?) {
                         btnVoice.text = "🎙️ 说话"
@@ -233,7 +274,9 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
             tvCurrentState.text = "当前状态: ${newState.displayName}"
             appendLog("[状态机迁移] ${oldState.name} ➔ ${newState.name}")
 
-            // Simulate waveform activity during speaking/listening
+            if (oldState == AgentState.LISTENING && newState == AgentState.IDLE) {
+                appendLog("[麦克风感知] 听到人声输入并完成落音截断。由于当前Demo未打包70MB Zipformer离线神经网络权重，请在下方输入文字或点击上方快捷标签，AI将针对您问的问题精准流式作答！")
+            }
             val dummyPcm = FloatArray(128) { (Math.random().toFloat() - 0.5f) * 0.8f }
             audioWaveformView.updateAmplitudes(dummyPcm)
         }
@@ -248,6 +291,7 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
     override fun onAsrFinal(finalText: String) {
         runOnUiThread {
             appendLog("[ASR 尾点定字] $finalText")
+            appendLog("[用户说] $finalText")
         }
     }
 

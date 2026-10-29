@@ -1,7 +1,8 @@
 #include "NativeJniBridge.hpp"
 #include "AudioAgentPipeline.hpp"
 #include "CpuAffinity.hpp"
-
+#include <ctime>
+#include <regex>
 #if defined(__ANDROID__)
 #include <android/log.h>
 #define TAG "AudioAgentNative"
@@ -23,7 +24,7 @@ public:
         for (int i = 0; i < count; ++i) energy += std::abs(samples[i]);
         float avg_energy = count > 0 ? (energy / count) : 0.0f;
 
-        // Increased threshold to 0.035f so background room noise does not falsely trigger
+        // Threshold for human voice activity: 0.035f
         bool is_voice = avg_energy > 0.035f;
         if (is_voice) {
             speech_frames_++;
@@ -39,6 +40,7 @@ public:
                 if (silence_frames_ >= 10) {
                     endpoint_ = true;
                     in_speech_ = false;
+                    recorded_speech_frames_ = speech_frames_;
                     speech_frames_ = 0;
                     silence_frames_ = 0;
                 }
@@ -57,12 +59,21 @@ public:
             if (!manual_text_.empty()) {
                 std::string res = manual_text_;
                 manual_text_.clear();
+                recorded_speech_frames_ = 0;
                 return res;
             }
-            // Do NOT fabricate hallucinated queries on noise.
+            recorded_speech_frames_ = 0;
             return "";
         }
         return in_speech_ ? "正在倾听..." : "";
+    }
+
+    void SetManualText(const std::string& text) {
+        manual_text_ = text;
+        if (!text.empty()) {
+            endpoint_ = true;
+            recorded_speech_frames_ = 5;
+        }
     }
 
     void Reset() override {
@@ -79,6 +90,7 @@ private:
     bool in_speech_{false};
     int speech_frames_{0};
     int silence_frames_{0};
+    int recorded_speech_frames_{0};
 };
 
 class DemoLlmEngine : public ILlmEngine {
@@ -100,26 +112,82 @@ public:
         }
 
         // Rich conversational responses matching Section 5.2 SFT targets
-        if (query.find("你好") != std::string::npos || query.find("在吗") != std::string::npos || query.find("嗨") != std::string::npos) {
-            *out_stream << "你好呀！我是本地全双工AI语音助手，支持随时插话打断。请问今天有什么我可以帮您的？";
-            out_stream->flush();
-        } else if (query.find("天气") != std::string::npos || query.find("气温") != std::string::npos || query.find("下雨") != std::string::npos) {
-            *out_stream << "今天天气晴朗，";
+        // Dynamic Real-time Clock
+        time_t now = std::time(nullptr);
+        tm* ltm = std::localtime(&now);
+        char time_buf[64] = {0};
+        std::strftime(time_buf, sizeof(time_buf), "%H点%M分", ltm);
+        char date_buf[64] = {0};
+        std::strftime(date_buf, sizeof(date_buf), "%Y年%m月%d日", ltm);
+
+        if (query.find("几点") != std::string::npos || query.find("时间") != std::string::npos) {
+            *out_stream << "现在是北京时间 " << time_buf << "。";
             out_stream->flush();
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            *out_stream << "气温二十二度，微风舒适，非常适合外出。";
+            *out_stream << "请问还有什么我可以协助您的？";
+            out_stream->flush();
+        } else if (query.find("几号") != std::string::npos || query.find("日期") != std::string::npos || query.find("今天几月") != std::string::npos) {
+            *out_stream << "今天是 " << date_buf << "。";
+            out_stream->flush();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            *out_stream << "祝您今天度过充实而愉快的一天！";
             out_stream->flush();
         } else if (query.find("空调") != std::string::npos || query.find("温度") != std::string::npos) {
-            *out_stream << "没问题，";
-            out_stream->flush();
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            *out_stream << "已调至二十四度。<|tool_call|>{\"action\":\"set_ac_temp\",\"value\":24}<|/tool_call|>";
-            out_stream->flush();
-        } else if (query.find("导航") != std::string::npos || query.find("去西湖") != std::string::npos || query.find("路线") != std::string::npos) {
+            if (query.find("关") != std::string::npos) {
+                *out_stream << "好的，";
+                out_stream->flush();
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                *out_stream << "已为您关闭空调。<|tool_call|>{\"action\":\"set_ac_power\",\"state\":\"off\"}<|/tool_call|>";
+                out_stream->flush();
+            } else {
+                int temp = 24;
+                std::regex num_reg(R"((\d{2}))");
+                std::smatch m;
+                if (std::regex_search(query, m, num_reg)) {
+                    int val = std::stoi(m[1].str());
+                    if (val >= 16 && val <= 32) temp = val;
+                }
+                *out_stream << "没问题，";
+                out_stream->flush();
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                *out_stream << "已调至" << temp << "度。<|tool_call|>{\"action\":\"set_ac_temp\",\"value\":" << temp << "}<|/tool_call|>";
+                out_stream->flush();
+            }
+        } else if (query.find("导航") != std::string::npos || query.find("去西湖") != std::string::npos || query.find("去") != std::string::npos || query.find("路线") != std::string::npos) {
+            std::string dest = "杭州西湖文化广场";
+            size_t p = query.find("去");
+            if (p == std::string::npos) p = query.find("到");
+            if (p != std::string::npos && p + 3 < query.size()) {
+                dest = query.substr(p + 3);
+            }
             *out_stream << "好的，";
             out_stream->flush();
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            *out_stream << "马上为您规划最佳路线。<|tool_call|>{\"action\":\"start_nav\",\"dest\":\"杭州西湖文化广场\"}<|/tool_call|>";
+            *out_stream << "马上为您规划前往" << dest << "的最佳路线。<|tool_call|>{\"action\":\"start_nav\",\"dest\":\"" << dest << "\"}<|/tool_call|>";
+            out_stream->flush();
+        } else if (query.find("你是谁") != std::string::npos || query.find("名字") != std::string::npos || query.find("介绍") != std::string::npos || query.find("你叫") != std::string::npos) {
+            *out_stream << "我是运行在您手机本地端的全双工AI语音助手。";
+            out_stream->flush();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            *out_stream << "基于Oboe底层无锁架构，不需要连网上传音频，支持随时插话打断与异步工具调用。请问有什么我可以协助您的？";
+            out_stream->flush();
+        } else if (query.find("你好") != std::string::npos || query.find("在吗") != std::string::npos || query.find("嗨") != std::string::npos || query.find("哈喽") != std::string::npos || query.find("早上好") != std::string::npos || query.find("晚上好") != std::string::npos) {
+            *out_stream << "你好呀！很高兴与您对话。";
+            out_stream->flush();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            *out_stream << "我是本地全双工AI语音助手，支持随时插话打断。今天有什么我可以帮您的吗？";
+            out_stream->flush();
+        } else if (query.find("天气") != std::string::npos || query.find("气温") != std::string::npos || query.find("下雨") != std::string::npos || query.find("晴") != std::string::npos || query.find("冷") != std::string::npos || query.find("热") != std::string::npos) {
+            *out_stream << "今天天气晴朗，";
+            out_stream->flush();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            *out_stream << "气温二十二度，微风舒适，非常适合外出散步或游玩。";
+            out_stream->flush();
+        } else if (query.find("笑话") != std::string::npos || query.find("开心") != std::string::npos || query.find("逗") != std::string::npos) {
+            *out_stream << "给您讲一个冷笑话：";
+            out_stream->flush();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            *out_stream << "有一天，红豆和绿豆相约去爬山。走着走着，绿豆突然不理红豆了。红豆问它怎么了，绿豆说：我中暑了，变成了绿豆汤！哈哈。";
             out_stream->flush();
         } else if (query.find("蓝") != std::string::npos || query.find("天空") != std::string::npos || query.find("为什么") != std::string::npos) {
             *out_stream << "这叫瑞利散射。";
@@ -127,11 +195,41 @@ public:
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             *out_stream << "简单说，阳光里的蓝光波长短，穿过大气层时容易被空气分子散射，所以咱们抬头看到的天空就是蓝色的。";
             out_stream->flush();
-        } else {
-            *out_stream << "明白，";
+        } else if (query.find("吃") != std::string::npos || query.find("饭") != std::string::npos) {
+            *out_stream << "我不用吃饭，";
             out_stream->flush();
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            *out_stream << "我已接收到您的指令。我是端侧纯本地运行的智能助手，支持随时插话打断与异步工具调用。";
+            *out_stream << "我是运行在手机本地的智能助手，随时为您提供协助！您吃饱了吗，今天有什么想跟我聊聊的？";
+            out_stream->flush();
+        } else if (query.find("唱") != std::string::npos || query.find("歌") != std::string::npos || query.find("音乐") != std::string::npos) {
+            *out_stream << "好呀，";
+            out_stream->flush();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            *out_stream << "一闪一闪亮晶晶，满天都是小星星。虽然我是端侧模型，但也是个爱音乐的助手哦！";
+            out_stream->flush();
+        } else if (query.find("全双工") != std::string::npos || query.find("打断") != std::string::npos || query.find("barge") != std::string::npos || query.find("原理") != std::string::npos) {
+            *out_stream << "端侧全双工的核心是DSP回声消除与无锁环形缓冲。";
+            out_stream->flush();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            *out_stream << "在播报的同时保持麦克风监听，一旦您说话，五毫秒内瞬间静音喇叭并回滚未播报记忆，实现真人般的自然插话交流。";
+            out_stream->flush();
+        } else if (query.find("谢谢") != std::string::npos || query.find("棒") != std::string::npos || query.find("厉害") != std::string::npos) {
+            *out_stream << "不客气！";
+            out_stream->flush();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            *out_stream << "为您服务是我的荣幸，有任何需要随时叫我哦。";
+            out_stream->flush();
+        } else if (query.find("再见") != std::string::npos || query.find("拜拜") != std::string::npos || query.find("退下") != std::string::npos) {
+            *out_stream << "好的，那我就先待命休息啦。";
+            out_stream->flush();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            *out_stream << "随时叫我唤醒，祝您今天心情愉快，再见！";
+            out_stream->flush();
+        } else {
+            *out_stream << "关于您提到的“" << query << "”，";
+            out_stream->flush();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            *out_stream << "我已经听到了。我是端侧纯本地运行的全双工助手，支持随时插话打断与异步工具调用。您可以问我天气、导航、调空调、讲笑话或查时间！";
             out_stream->flush();
         }
     }
@@ -144,17 +242,13 @@ class DemoTtsEngine : public ISpeechSynthesisEngine {
 public:
     bool SynthesizeStreaming(const std::string& text, AudioChunkCallback callback) override {
         const int CHUNK_SIZE = 480; // 20ms at 24kHz
+        // Silent PCM frames for Oboe clock pacing without emitting harsh 480Hz buzz tone!
         std::vector<float> pcm(CHUNK_SIZE, 0.0f);
         size_t num_chunks = std::max<size_t>(3, (text.size() / 3) * 2);
         if (num_chunks > 15) num_chunks = 15;
 
         for (size_t c = 0; c < num_chunks; ++c) {
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
-            float freq = 480.0f;
-            for (int i = 0; i < CHUNK_SIZE; ++i) {
-                float t = static_cast<float>(c * CHUNK_SIZE + i) / 24000.0f;
-                pcm[i] = 0.04f * std::sin(2.0f * 3.14159265f * freq * t);
-            }
             int rc = callback(pcm.data(), CHUNK_SIZE, static_cast<float>(c + 1) / num_chunks);
             if (rc == 0) return false; // Aborted by Barge-in
         }

@@ -170,9 +170,31 @@
             android:orientation="horizontal">
 
             <Button
+                android:id="@+id/btnWhoPrompt"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:background="@color/chip_background"
+                android:paddingHorizontal="12dp"
+                android:text="🤖 你是谁"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnWeatherPrompt"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:background="@color/chip_background"
+                android:paddingHorizontal="12dp"
+                android:text="☀️ 今天天气"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp" />
+
+            <Button
                 android:id="@+id/btnNavPrompt"
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
+                android:layout_marginStart="8dp"
                 android:background="@color/chip_background"
                 android:paddingHorizontal="12dp"
                 android:text="🗺️ 导航去西湖"
@@ -191,6 +213,17 @@
                 android:textSize="12sp" />
 
             <Button
+                android:id="@+id/btnJokePrompt"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:background="@color/chip_background"
+                android:paddingHorizontal="12dp"
+                android:text="😄 讲个笑话"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp" />
+
+            <Button
                 android:id="@+id/btnSkyPrompt"
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
@@ -198,6 +231,17 @@
                 android:background="@color/chip_background"
                 android:paddingHorizontal="12dp"
                 android:text="🌌 为什么天是蓝的"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnTimePrompt"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:background="@color/chip_background"
+                android:paddingHorizontal="12dp"
+                android:text="⏰ 现在几点"
                 android:textColor="@color/text_primary"
                 android:textSize="12sp" />
         </LinearLayout>
