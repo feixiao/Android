@@ -79,6 +79,19 @@ public:
 };
 
 /**
+ * LLM Inference Telemetry and Local Profiling Stats
+ */
+struct LlmStats {
+    int64_t prefill_latency_ms{0};     // Prefill latency (System Prompt + User Query)
+    int64_t ttft_ms{0};                // Time To First Token (TTFT)
+    float tokens_per_second{0.0f};      // Output generation speed (tokens/sec)
+    size_t kv_cache_tokens{0};          // Current active KV Cache length
+    size_t generated_tokens{0};         // Tokens generated in current turn
+    bool is_prefix_hit{false};          // Whether Prefix KV Cache was reused (Zero-delay)
+    std::string engine_name{"MNN-LLM (On-Device)"}; // Name of active engine
+};
+
+/**
  * LLM Inference Interface (MNN-LLM)
  */
 class ILlmEngine {
@@ -93,6 +106,9 @@ public:
 
     // Pre-warm prefix KV cache with System Prompt
     virtual bool WarmupPrefix(const std::string& system_prompt) = 0;
+
+    // Get latest inference telemetry statistics
+    virtual LlmStats GetLatestStats() const { return {}; }
 };
 
 } // namespace audio_agent

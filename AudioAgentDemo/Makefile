@@ -74,6 +74,7 @@ test:
 		src/ThreeTierMemory.cpp \
 		src/FullDuplexAudioIO.cpp \
 		src/AudioAgentPipeline.cpp \
+		src/MnnLlmEngine.cpp \
 		src/test_main.cpp \
 		-o audio_agent_test
 	@echo "==> 执行自动化冒烟测试套件..."

@@ -107,6 +107,14 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
         nativeEngine.setModelPath(path)
     }
 
+    fun setLlmEngineMode(mode: Int) {
+        nativeEngine.setLlmEngineMode(mode)
+    }
+
+    fun getLlmStats(): String {
+        return nativeEngine.getLlmStats()
+    }
+
     fun getPerformanceCores(): List<Int> {
         return try {
             AudioAgentNative.nativeGetTopPerformanceCores(4).toList()
@@ -226,6 +234,12 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
     override fun onWatchdogFallback(reason: String) {
         for (l in listeners) {
             l.onWatchdogFallback(reason)
+        }
+    }
+
+    override fun onLlmStats(statsJson: String) {
+        for (l in listeners) {
+            l.onLlmStats(statsJson)
         }
     }
 

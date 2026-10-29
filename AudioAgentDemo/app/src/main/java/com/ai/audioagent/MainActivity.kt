@@ -48,6 +48,9 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
     private lateinit var btnModelAction: Button
     private lateinit var tvModelStatus: TextView
     private lateinit var pbModelDownload: ProgressBar
+    private lateinit var btnSwitchLlmMode: Button
+    private lateinit var tvLlmTelemetry: TextView
+    private var currentLlmMode = 0 // 0 = Local MNN-LLM, 1 = Cloud API Mock
     private var isDownloadingModel = false
     private var speechRecognizer: android.speech.SpeechRecognizer? = null
 
@@ -98,6 +101,22 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
         btnModelAction = findViewById(R.id.btnModelAction)
         tvModelStatus = findViewById(R.id.tvModelStatus)
         pbModelDownload = findViewById(R.id.pbModelDownload)
+        btnSwitchLlmMode = findViewById(R.id.btnSwitchLlmMode)
+        tvLlmTelemetry = findViewById(R.id.tvLlmTelemetry)
+
+        btnSwitchLlmMode.setOnClickListener {
+            currentLlmMode = if (currentLlmMode == 0) 1 else 0
+            agentManager.setLlmEngineMode(currentLlmMode)
+            if (currentLlmMode == 0) {
+                btnSwitchLlmMode.text = "⚡ 引擎: 本地 MNN-LLM"
+                btnSwitchLlmMode.setTextColor(ContextCompat.getColor(this, R.color.primary_accent))
+                appendLog("[引擎切换] ⚡ 已切换至端侧本地 MNN-LLM (Prefix KV Cache 固化 / 零网络依赖)")
+            } else {
+                btnSwitchLlmMode.text = "☁️ 引擎: 云端 API Mock"
+                btnSwitchLlmMode.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+                appendLog("[引擎切换] ☁️ 已切换至云端 API Mock (模拟 WAN 网络 RTT ~280ms / SSE 分包)")
+            }
+        }
         updateModelStatusUI()
 
         btnModelAction.setOnClickListener {
@@ -423,6 +442,26 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
     override fun onWatchdogFallback(reason: String) {
         runOnUiThread {
             appendLog("🛡️ [看门狗兜底触发] 原因: $reason")
+        }
+    }
+
+    override fun onLlmStats(statsJson: String) {
+        try {
+            val json = org.json.JSONObject(statsJson)
+            val engine = json.optString("engine", "MNN-LLM")
+            val ttft = json.optLong("ttft_ms")
+            val prefill = json.optLong("prefill_ms")
+            val tps = json.optDouble("tps", 0.0)
+            val kvTokens = json.optLong("kv_tokens")
+            val prefixHit = json.optBoolean("prefix_hit")
+
+            runOnUiThread {
+                val hitText = if (prefixHit) "命中 (增量Prefill)" else "未命中 (全量Prefill)"
+                tvLlmTelemetry.text = "遥测: 引擎: $engine | Prefix: $hitText (${prefill}ms) | TTFT: ${ttft}ms | 解码: ${"%.1f".format(tps)} tok/s | KV Tokens: $kvTokens"
+                appendLog("[端侧 LLM 遥测] 引擎: $engine | Prefix: $hitText (${prefill}ms) | TTFT: ${ttft}ms | 解码: ${"%.1f".format(tps)} tok/s | KV: $kvTokens Tokens")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to parse LLM stats", e)
         }
     }
 

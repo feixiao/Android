@@ -1,6 +1,8 @@
 #include "NativeJniBridge.hpp"
 #include "AudioAgentPipeline.hpp"
 #include "CpuAffinity.hpp"
+#include "MnnLlmEngine.hpp"
+#include "MockCloudLlmEngine.hpp"
 #include <ctime>
 #include <regex>
 #if defined(__ANDROID__)
@@ -410,6 +412,9 @@ struct JniBridgeContext {
     JavaVM* jvm{nullptr};
     jobject listener_global_ref{nullptr};
     std::shared_ptr<AudioAgentPipeline> pipeline;
+    std::shared_ptr<MnnLlmEngine> mnn_llm;
+    std::shared_ptr<MockCloudLlmEngine> cloud_llm;
+    jmethodID mid_on_llm_stats{nullptr};
 
     jmethodID mid_on_state_changed{nullptr};
     jmethodID mid_on_asr_partial{nullptr};
@@ -470,14 +475,19 @@ Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeCreate(
     ctx->mid_on_tool_call = env->GetMethodID(cls, "onNativeToolCall", "(Ljava/lang/String;)V");
     ctx->mid_on_barge_in = env->GetMethodID(cls, "onNativeBargeIn", "(Ljava/lang/String;)V");
     ctx->mid_on_watchdog_fallback = env->GetMethodID(cls, "onNativeWatchdogFallback", "(Ljava/lang/String;)V");
+    ctx->mid_on_llm_stats = env->GetMethodID(cls, "onNativeLlmStats", "(Ljava/lang/String;)V");
 
     const char* sys_prompt_cstr = env->GetStringUTFChars(system_prompt, nullptr);
     std::string sys_prompt = sys_prompt_cstr ? sys_prompt_cstr : "";
     env->ReleaseStringUTFChars(system_prompt, sys_prompt_cstr);
 
     auto perception = std::make_shared<DemoPerceptionEngine>();
-    auto llm = std::make_shared<DemoLlmEngine>();
+    ctx->mnn_llm = std::make_shared<MnnLlmEngine>();
+    ctx->cloud_llm = std::make_shared<MockCloudLlmEngine>();
     auto tts = std::make_shared<DemoTtsEngine>();
+
+    // Pre-warm System Prompt on MNN-LLM Prefix KV Cache (Whitepaper Section 3.3)
+    ctx->mnn_llm->WarmupPrefix(sys_prompt);
 
     PipelineObserver observer;
     observer.on_state_changed = [ctx](AgentState new_state, AgentState old_state) {
@@ -553,7 +563,27 @@ Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeCreate(
         });
     };
 
-    ctx->pipeline = std::make_shared<AudioAgentPipeline>(perception, llm, tts, std::move(observer));
+    observer.on_llm_stats = [ctx](const LlmStats& stats) {
+        ctx->CallVoidMethodWithEnv([ctx, stats](JNIEnv* env) {
+            if (ctx->mid_on_llm_stats) {
+                char json_buf[512];
+                snprintf(json_buf, sizeof(json_buf),
+                         R"({"engine":"%s","ttft_ms":%lld,"prefill_ms":%lld,"tps":%.1f,"kv_tokens":%zu,"gen_tokens":%zu,"prefix_hit":%s})",
+                         stats.engine_name.c_str(),
+                         static_cast<long long>(stats.ttft_ms),
+                         static_cast<long long>(stats.prefill_latency_ms),
+                         stats.tokens_per_second,
+                         stats.kv_cache_tokens,
+                         stats.generated_tokens,
+                         stats.is_prefix_hit ? "true" : "false");
+                jstring js = env->NewStringUTF(json_buf);
+                env->CallVoidMethod(ctx->listener_global_ref, ctx->mid_on_llm_stats, js);
+                env->DeleteLocalRef(js);
+            }
+        });
+    };
+
+    ctx->pipeline = std::make_shared<AudioAgentPipeline>(perception, ctx->mnn_llm, tts, std::move(observer));
     return reinterpret_cast<jlong>(ctx);
 }
 
@@ -652,6 +682,48 @@ Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeSetModelPath(
         }
     }
     ctx->pipeline->SetModelPath(path_cpp);
+}
+
+JNIEXPORT void JNICALL
+Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeSetLlmEngineMode(
+    JNIEnv* /*env*/,
+    jobject /*thiz*/,
+    jlong handle,
+    jint mode
+) {
+    auto* ctx = reinterpret_cast<JniBridgeContext*>(handle);
+    if (!ctx || !ctx->pipeline) return;
+
+    if (mode == 1 && ctx->cloud_llm) {
+        ctx->pipeline->SetLlmEngine(ctx->cloud_llm);
+        LOGI("Switched active LLM Engine to: Cloud-API Mock (A-Side)");
+    } else if (ctx->mnn_llm) {
+        ctx->pipeline->SetLlmEngine(ctx->mnn_llm);
+        LOGI("Switched active LLM Engine to: MNN-LLM On-Device (B-Side)");
+    }
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeGetLlmStats(
+    JNIEnv* env,
+    jobject /*thiz*/,
+    jlong handle
+) {
+    auto* ctx = reinterpret_cast<JniBridgeContext*>(handle);
+    if (!ctx || !ctx->pipeline) return env->NewStringUTF("{}");
+
+    auto stats = ctx->pipeline->GetLlmStats();
+    char json_buf[512];
+    snprintf(json_buf, sizeof(json_buf),
+             R"({"engine":"%s","ttft_ms":%lld,"prefill_ms":%lld,"tps":%.1f,"kv_tokens":%zu,"gen_tokens":%zu,"prefix_hit":%s})",
+             stats.engine_name.c_str(),
+             static_cast<long long>(stats.ttft_ms),
+             static_cast<long long>(stats.prefill_latency_ms),
+             stats.tokens_per_second,
+             stats.kv_cache_tokens,
+             stats.generated_tokens,
+             stats.is_prefix_hit ? "true" : "false");
+    return env->NewStringUTF(json_buf);
 }
 
 JNIEXPORT jintArray JNICALL

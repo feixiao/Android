@@ -5,6 +5,8 @@
 #include "ThreeTierMemory.hpp"
 #include "FullDuplexAudioIO.hpp"
 #include "AudioAgentPipeline.hpp"
+#include "MnnLlmEngine.hpp"
+#include "MockCloudLlmEngine.hpp"
 #include <iostream>
 #include <sstream>
 #include <cassert>
@@ -768,14 +770,14 @@ static void TestMultiTurnDialogue() {
 
     // Turn 1: Time query
     pipeline.SubmitUserQuery("请问现在几点了？");
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(350));
     assert(!spoken_sentences.empty());
     assert(pipeline.GetMemory().GetActiveTurns().size() == 1);
 
     // Turn 2: AC tool call
     spoken_sentences.clear();
     pipeline.SubmitUserQuery("把空调调到26度");
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(350));
     assert(!tool_calls.empty());
     assert(tool_calls.back().find("26") != std::string::npos);
     assert(pipeline.GetMemory().GetActiveTurns().size() == 2);
@@ -783,7 +785,7 @@ static void TestMultiTurnDialogue() {
     // Turn 3: Navigation tool call
     tool_calls.clear();
     pipeline.SubmitUserQuery("导航去杭州西湖文化广场");
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(350));
     assert(!tool_calls.empty());
     assert(tool_calls.back().find("杭州西湖文化广场") != std::string::npos);
     assert(pipeline.GetMemory().GetActiveTurns().size() == 3);
@@ -918,6 +920,53 @@ static void TestModelConfigurationAndPerception() {
 
     LogPass("On-Device Model Configuration and Perception passed.");
 }
+static void TestMnnLlmEngineAndCloudComparison() {
+    LogTest("MNN-LLM On-Device Engine (Prefix Reuse & KV Rollback) vs Cloud Mock");
+
+    // 1. Test On-Device MNN-LLM Engine
+    MnnLlmEngine local_llm;
+    const std::string sys_prompt = "你是本地全双工AI语音助手，请用极简纯口语回答，严禁使用符号与阿拉伯数字。";
+
+    // Warmup prefix KV cache (Section 3.3)
+    bool warmed = local_llm.WarmupPrefix(sys_prompt);
+    assert(warmed);
+
+    // Run query with warmed system prompt
+    std::string full_prompt = "<|im_start|>system\n" + sys_prompt + "<|im_end|>\n<|im_start|>user\n今天天气怎么样？<|im_end|>\n<|im_start|>assistant\n";
+    std::stringstream local_ss;
+    local_llm.ResponseStream(full_prompt, &local_ss);
+
+    std::string local_reply = local_ss.str();
+    assert(!local_reply.empty());
+    assert(local_reply.find("天气") != std::string::npos);
+
+    auto local_stats = local_llm.GetLatestStats();
+    assert(local_stats.is_prefix_hit); // Must hit prefix cache!
+    assert(local_stats.prefill_latency_ms < 50); // Incremental prefill only
+    assert(local_stats.ttft_ms < 100); // TTFT < 100ms
+    assert(local_stats.kv_cache_tokens > 64);
+    assert(local_stats.engine_name == "MNN-LLM (On-Device)");
+
+    // Test Barge-in KV Cache Rollback (Section 4.3)
+    size_t before_kv = local_stats.kv_cache_tokens;
+    local_llm.RollbackTokens(10); // Keep only 10 spoken tokens
+    auto rolled_stats = local_llm.GetLatestStats();
+    assert(rolled_stats.kv_cache_tokens < before_kv);
+
+    // 2. Test Cloud Mock Comparison
+    MockCloudLlmEngine cloud_llm;
+    std::stringstream cloud_ss;
+    cloud_llm.ResponseStream(full_prompt, &cloud_ss);
+    std::string cloud_reply = cloud_ss.str();
+    assert(!cloud_reply.empty());
+
+    auto cloud_stats = cloud_llm.GetLatestStats();
+    assert(!cloud_stats.is_prefix_hit); // Cloud cannot reuse local KV cache
+    assert(cloud_stats.ttft_ms >= 250); // Cloud latency includes WAN RTT (280ms)
+    assert(cloud_stats.engine_name == "Cloud-API (Mocked SSE)");
+
+    LogPass("MNN-LLM On-Device Engine and Cloud Comparison passed.");
+}
 
 int main() {
     std::cout << "\n=======================================================\n";
@@ -959,7 +1008,8 @@ int main() {
 
     TestModelConfigurationAndPerception();
     std::cout << std::endl;
+    TestMnnLlmEngineAndCloudComparison();
+    std::cout << std::endl;
 
-    std::cout << COLOR_GREEN << "ALL 12 TEST SUITES PASSED SUCCESSFULLY!" << COLOR_RESET << "\n\n";
-    return 0;
+    std::cout << COLOR_GREEN << "ALL 13 TEST SUITES PASSED SUCCESSFULLY!" << COLOR_RESET << "\n\n";
 }

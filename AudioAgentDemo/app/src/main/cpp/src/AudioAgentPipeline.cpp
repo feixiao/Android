@@ -168,6 +168,18 @@ void AudioAgentPipeline::SetModelPath(const std::string& path) {
     }
 }
 
+void AudioAgentPipeline::SetLlmEngine(std::shared_ptr<ILlmEngine> llm_engine) {
+    std::lock_guard<std::mutex> lock(query_mtx_);
+    llm_engine_ = std::move(llm_engine);
+}
+
+LlmStats AudioAgentPipeline::GetLlmStats() const {
+    if (llm_engine_) {
+        return llm_engine_->GetLatestStats();
+    }
+    return {};
+}
+
 void AudioAgentPipeline::PerceptionWorkerLoop() {
     // Bind perception thread to efficiency little cores (<150mW power budget)
     BindThreadToLittleCores(2);
@@ -294,6 +306,11 @@ void AudioAgentPipeline::CognitionWorkerLoop() {
         chunker.Flush();
         watchdog_.Stop();
 
+
+        // Dispatch real-time LLM telemetry stats
+        if (llm_engine_ && observer_.on_llm_stats) {
+            observer_.on_llm_stats(llm_engine_->GetLatestStats());
+        }
         // Record completed turn to memory
         if (!full_assistant_response.empty() && !IsBargeInAborted()) {
             memory_.AddTurn(query, full_assistant_response, false);

@@ -164,6 +164,52 @@
             android:visibility="gone" />
     </LinearLayout>
 
+    <!-- On-Device LLM (MNN-LLM) Research & Telemetry Card -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@color/surface_card"
+        android:orientation="vertical"
+        android:padding="10dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🧠 端侧认知模型 (MNN-LLM 架构研究)"
+                android:textColor="@color/text_primary"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnSwitchLlmMode"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:backgroundTint="@color/surface_card"
+                android:paddingHorizontal="8dp"
+                android:text="⚡ 引擎: 本地 MNN-LLM"
+                android:textColor="@color/primary_accent"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvLlmTelemetry"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="端侧特性: Prefix KV 预热 (72 Tok) | 增量Prefill: 20ms | TTFT: ~65ms | 解码: 38 tok/s | KV 回滚就绪"
+            android:textColor="@color/primary_accent"
+            android:textSize="10sp" />
+    </LinearLayout>
+
     <!-- Dialogue Stream Box -->
     <LinearLayout
         android:layout_width="match_parent"

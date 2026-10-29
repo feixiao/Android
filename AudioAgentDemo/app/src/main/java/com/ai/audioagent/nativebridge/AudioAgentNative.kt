@@ -27,6 +27,7 @@ interface AudioAgentListener {
     fun onToolCall(toolJson: String)
     fun onBargeIn(spokenTextRetained: String)
     fun onWatchdogFallback(reason: String)
+    fun onLlmStats(statsJson: String) {}
 }
 
 /**
@@ -111,6 +112,23 @@ class AudioAgentNative(private val listener: AudioAgentListener? = null) {
     }
 
     /**
+     * Switch active LLM engine: 0 = MNN-LLM On-Device (B-Side), 1 = Cloud API Mock (A-Side)
+     */
+    fun setLlmEngineMode(mode: Int) {
+        if (nativeHandle != 0L) {
+            nativeSetLlmEngineMode(nativeHandle, mode)
+        }
+    }
+
+    /**
+     * Fetch real-time on-device LLM telemetry JSON
+     */
+    fun getLlmStats(): String {
+        if (nativeHandle == 0L) return "{}"
+        return nativeGetLlmStats(nativeHandle)
+    }
+
+    /**
      * Cleans up and destroys native pipeline instance
      */
     fun destroy() {
@@ -159,6 +177,11 @@ class AudioAgentNative(private val listener: AudioAgentListener? = null) {
         listener?.onWatchdogFallback(reason)
     }
 
+    @Suppress("unused")
+    fun onNativeLlmStats(statsJson: String) {
+        listener?.onLlmStats(statsJson)
+    }
+
     // -------------------------------------------------------------
     // External Native Function Declarations
     // -------------------------------------------------------------
@@ -171,6 +194,8 @@ class AudioAgentNative(private val listener: AudioAgentListener? = null) {
     private external fun nativeGetState(handle: Long): Int
     private external fun nativeOnThermalChanged(handle: Long, thermalStatus: Int)
     private external fun nativeSetModelPath(handle: Long, modelPath: String)
+    private external fun nativeSetLlmEngineMode(handle: Long, mode: Int)
+    private external fun nativeGetLlmStats(handle: Long): String
     private external fun nativeDestroy(handle: Long)
 
     companion object {

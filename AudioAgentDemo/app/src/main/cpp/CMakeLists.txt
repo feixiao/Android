@@ -31,6 +31,7 @@ set(AUDIO_AGENT_SOURCES
     src/ThreeTierMemory.cpp
     src/FullDuplexAudioIO.cpp
     src/AudioAgentPipeline.cpp
+    src/MnnLlmEngine.cpp
     src/NativeJniBridge.cpp
 )
 

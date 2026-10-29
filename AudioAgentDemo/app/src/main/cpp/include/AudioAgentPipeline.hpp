@@ -31,6 +31,7 @@ struct PipelineObserver {
     std::function<void(const std::string& tool_json)> on_tool_call;
     std::function<void(const std::string& spoken_interrupted)> on_barge_in;
     std::function<void(const std::string& fallback_reason)> on_watchdog_fallback;
+    std::function<void(const LlmStats& stats)> on_llm_stats;
 };
 
 /**
@@ -84,6 +85,12 @@ public:
 
     // Set on-device ASR model path (e.g. Sherpa-onnx Zipformer)
     void SetModelPath(const std::string& path);
+
+    // Dynamically switch LLM engine (e.g. MNN-LLM Local vs Cloud Mock)
+    void SetLlmEngine(std::shared_ptr<ILlmEngine> llm_engine);
+
+    // Get latest LLM telemetry stats
+    LlmStats GetLlmStats() const;
 
     AgentState GetState() const {
         return state_.load(std::memory_order_acquire);
