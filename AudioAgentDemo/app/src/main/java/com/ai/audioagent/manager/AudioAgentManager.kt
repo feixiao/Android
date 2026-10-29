@@ -101,6 +101,14 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
         isRunning = false
     }
 
+    fun pauseAudioIO() {
+        nativeEngine.pauseAudioIO()
+    }
+
+    fun resumeAudioIO(): Boolean {
+        return nativeEngine.resumeAudioIO()
+    }
+
     fun triggerBargeIn() {
         textToSpeech?.stop()
         nativeEngine.triggerBargeIn()
@@ -149,8 +157,13 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
                     when (focusChange) {
                         AudioManager.AUDIOFOCUS_LOSS,
                         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                            Log.w(TAG, "Audio focus lost, triggering barge-in silence")
+                            Log.w(TAG, "Audio focus lost, triggering barge-in & pausing audio IO")
                             triggerBargeIn()
+                            pauseAudioIO()
+                        }
+                        AudioManager.AUDIOFOCUS_GAIN -> {
+                            Log.i(TAG, "Audio focus regained, resuming audio IO")
+                            resumeAudioIO()
                         }
                     }
                 }

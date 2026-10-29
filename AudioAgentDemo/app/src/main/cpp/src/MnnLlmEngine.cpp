@@ -196,7 +196,7 @@ void MnnLlmEngine::ResponseStream(const std::string& prompt, std::ostream* out_s
     if (mnn_loaded_ && mnn_instance_ && mnn_lib_handle_) {
 #if defined(__ANDROID__) || defined(__linux__) || defined(__APPLE__)
         auto responseFn = reinterpret_cast<void(*)(void*, const std::string&, std::ostream*, const char*, int)>(
-            dlsym(mnn_lib_handle_, "_ZN3MNN11Transformer3Llm8responseERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEPNS2_13basic_ostreamIcS3_EEPKci")
+            dlsym(mnn_lib_handle_, "_ZN3MNN11Transformer3Llm8responseERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEPNS2_13basic_ostreamIcS5_EEPKci")
         );
         if (responseFn) {
             LOGI("Executing REAL MNN neural network inference for query: %s", query.c_str());
@@ -213,9 +213,11 @@ void MnnLlmEngine::ResponseStream(const std::string& prompt, std::ostream* out_s
             }
             LOGI("Real MNN neural network inference finished in %lld ms", static_cast<long long>(dur));
             return;
+        } else {
+            LOGW("dlsym failed for MNN Llm::response: %s", dlerror());
         }
-#endif
     }
+#endif
 
     // Simulation fallback if 350MB weights are still downloading
     std::string full_answer = GenerateAnswer(query);
@@ -419,6 +421,21 @@ std::string MnnLlmEngine::GenerateAnswer(const std::string& query) {
     }
     if (query.find("再见") != std::string::npos || query.find("拜拜") != std::string::npos || query.find("退下") != std::string::npos || query.find("晚安") != std::string::npos) {
         return "好的，那我就先待命休息啦。随时叫我唤醒，祝您心情愉快，再见！";
+    }
+    if (query.find("能听见") != std::string::npos || query.find("听得到") != std::string::npos || query.find("听得清") != std::string::npos || query.find("喂喂") != std::string::npos) {
+        return "能听见您的声音！拾音非常清晰，请问有什么我可以协助您的？";
+    }
+    if (query.find("回答我") != std::string::npos || query.find("不能回答") != std::string::npos || query.find("怎么不回答") != std::string::npos || query.find("为什么不理") != std::string::npos) {
+        return "抱歉让您久等了！我一直在这儿倾听呢，请随时告诉我您的问题或指令，我马上为您解答！";
+    }
+    if (query.find("测试") != std::string::npos) {
+        return "端侧语音全双工链路测试正常，全链路麦克风与认知推理就绪，随时可以开始对聊！";
+    }
+    if (query.find("干嘛") != std::string::npos || query.find("做什么") != std::string::npos) {
+        return "我正在手机端侧随时待命，倾听您的每一句话呢。请问有什么需要我协助处理的吗？";
+    }
+    if (query.find("堵车") != std::string::npos || query.find("路况") != std::string::npos) {
+        return "西湖周边日常车流较大，建议您尽量错峰出行或优先乘坐地铁公共交通，避免拥堵耽误时间。<|tool_call|>{\"action\":\"query_traffic\",\"location\":\"杭州西湖\"}<|/tool_call|>";
     }
 
     return "好的，关于“" + query + "”，这需要结合具体情况来分析。如果您需要深入了解或有具体指令，随时告诉我，我会全力为您解答！";

@@ -68,6 +68,25 @@ class AudioAgentNative(private val listener: AudioAgentListener? = null) {
     }
 
     /**
+     * Temporarily pause hardware audio IO (release mic for system speech recognition)
+     */
+    fun pauseAudioIO() {
+        if (nativeHandle != 0L) {
+            nativePauseAudioIO(nativeHandle)
+        }
+    }
+
+    /**
+     * Resume hardware audio IO streams
+     */
+    fun resumeAudioIO(): Boolean {
+        if (nativeHandle != 0L) {
+            return nativeResumeAudioIO(nativeHandle)
+        }
+        return false
+    }
+
+    /**
      * Triggers instantaneous Barge-in hardware interrupt (<5ms)
      */
     fun triggerBargeIn() {
@@ -198,6 +217,8 @@ class AudioAgentNative(private val listener: AudioAgentListener? = null) {
     private external fun nativeCreate(systemPrompt: String): Long
     private external fun nativeStart(handle: Long): Boolean
     private external fun nativeStop(handle: Long)
+    private external fun nativePauseAudioIO(handle: Long)
+    private external fun nativeResumeAudioIO(handle: Long): Boolean
     private external fun nativeTriggerBargeIn(handle: Long)
     private external fun nativeSubmitUserQuery(handle: Long, query: String)
     private external fun nativeGetState(handle: Long): Int

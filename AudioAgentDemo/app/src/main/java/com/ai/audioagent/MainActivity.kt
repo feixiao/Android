@@ -57,6 +57,7 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
     private var isDownloadingLlm = false
     private var isDownloadingModel = false
     private var speechRecognizer: android.speech.SpeechRecognizer? = null
+    private var isListeningSpeech = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,6 +81,9 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
                 appendLog("[用户问] $q")
                 agentManager.submitUserQuery(q)
             }
+        }
+        if (intent?.getBooleanExtra("start_voice", false) == true) {
+            startSpeechRecognition()
         }
     }
 
@@ -167,7 +171,11 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
                 etCustomQuery.setText("")
                 return@setOnClickListener
             }
-            startSpeechRecognition()
+            if (isListeningSpeech) {
+                stopSpeechRecognition()
+            } else {
+                startSpeechRecognition()
+            }
         }
         btnBargeIn.setOnClickListener {
             agentManager.triggerBargeIn()
@@ -357,38 +365,44 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
             speechRecognizer = android.speech.SpeechRecognizer.createSpeechRecognizer(this).apply {
                 setRecognitionListener(object : android.speech.RecognitionListener {
                     override fun onReadyForSpeech(params: Bundle?) {
-                        appendLog("[语音识别] 正在聆听，请对着麦克风说话...")
-                        btnVoice.text = "🔴 聆听中"
+                        appendLog("[语音识别] 麦克风已就绪，正在倾听，请对准麦克风说话...")
+                        btnVoice.text = "🔴 请说话"
                     }
-                    override fun onBeginningOfSpeech() {}
+                    override fun onBeginningOfSpeech() {
+                        btnVoice.text = "🔴 识别中..."
+                    }
                     override fun onRmsChanged(rmsdB: Float) {}
                     override fun onBufferReceived(buffer: ByteArray?) {}
                     override fun onEndOfSpeech() {
-                        btnVoice.text = "🎙️ 说话"
+                        btnVoice.text = "⏳ 解析中..."
                     }
                     override fun onError(error: Int) {
+                        isListeningSpeech = false
                         btnVoice.text = "🎙️ 说话"
+                        agentManager.resumeAudioIO()
                         val errorMsg = when (error) {
                             android.speech.SpeechRecognizer.ERROR_NETWORK,
                             android.speech.SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "系统语音网络未连接"
                             android.speech.SpeechRecognizer.ERROR_NO_MATCH -> "未匹配到清晰语音"
+                            android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "未检测到说话声音"
                             12, 13 -> "离线中文语音包未就绪"
-                            else -> "状态码: $error"
+                            else -> "识别状态码: $error"
                         }
-                        if (ModelManager.isModelReady(this@MainActivity)) {
-                            appendLog("[语音提示] $errorMsg。端侧 Sherpa-onnx 离线 ASR 模型已安装就绪，全双工麦克风处于实时监听状态，可直接对着手机说话免触对聊！")
-                        } else {
-                            appendLog("[语音提示] $errorMsg。全双工麦克风已处于实时监听状态，可点击上方「下载模型 (31MB)」启用端侧离线识别，或在下方输入文字发送！")
-                        }
+                        appendLog("[语音提示] $errorMsg。请再次点击「🎙️ 说话」对聊，或直接在输入框打字发送！")
                     }
                     override fun onResults(results: Bundle?) {
+                        isListeningSpeech = false
                         btnVoice.text = "🎙️ 说话"
+                        agentManager.resumeAudioIO()
                         val matches = results?.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION)
                         val text = matches?.firstOrNull()
                         if (!text.isNullOrEmpty()) {
                             etCustomQuery.setText(text)
                             appendLog("[用户说] $text")
                             agentManager.submitUserQuery(text)
+                            etCustomQuery.setText("")
+                        } else {
+                            appendLog("[语音识别] 未识别到有效文字，请重试或打字发送。")
                         }
                     }
                     override fun onPartialResults(partialResults: Bundle?) {
@@ -405,17 +419,37 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
 
     private fun startSpeechRecognition() {
         if (speechRecognizer != null) {
+            isListeningSpeech = true
+            agentManager.pauseAudioIO()
+            btnVoice.text = "🔴 准备中"
             val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
                 putExtra(android.speech.RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             }
-            speechRecognizer?.startListening(intent)
+            try {
+                speechRecognizer?.startListening(intent)
+            } catch (e: Exception) {
+                isListeningSpeech = false
+                agentManager.resumeAudioIO()
+                btnVoice.text = "🎙️ 说话"
+                appendLog("[语音识别异常] ${e.message}")
+            }
         } else {
             android.widget.Toast.makeText(this, "语音识别服务就绪中，也可直接打字发送", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
+    private fun stopSpeechRecognition() {
+        if (isListeningSpeech) {
+            isListeningSpeech = false
+            try {
+                speechRecognizer?.stopListening()
+            } catch (e: Exception) {}
+            btnVoice.text = "🎙️ 说话"
+            agentManager.resumeAudioIO()
+        }
+    }
     private fun initAgent() {
         agentManager = AudioAgentManager.getInstance(this)
         agentManager.addListener(this)
@@ -485,11 +519,7 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
             appendLog("[状态机迁移] ${oldState.name} ➔ ${newState.name}")
 
             if (oldState == AgentState.LISTENING && newState == AgentState.IDLE) {
-                if (ModelManager.isModelReady(this@MainActivity)) {
-                    appendLog("[麦克风感知] 监听到语音落音截断，离线模型就绪 (过滤短杂音或已触发识别)。")
-                } else {
-                    appendLog("[麦克风感知] 听到人声输入并完成落音截断。由于当前未安装离线模型，请点击上方「下载模型 (31MB)」或在下方输入文字/点击快捷标签！")
-                }
+                appendLog("[麦克风感知] 监听到语音落音截断。请点击右下方「🎙️ 说话」按钮开始精准语音对聊，或直接打字发送！")
             }
             val dummyPcm = FloatArray(128) { (Math.random().toFloat() - 0.5f) * 0.8f }
             audioWaveformView.updateAmplitudes(dummyPcm)
@@ -551,6 +581,11 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Failed to parse LLM stats", e)
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        stopSpeechRecognition()
     }
 
     override fun onDestroy() {

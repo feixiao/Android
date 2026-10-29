@@ -85,6 +85,20 @@ void AudioAgentPipeline::Stop() {
     if (idle_monitor_thread_.joinable()) idle_monitor_thread_.join();
 }
 
+void AudioAgentPipeline::PauseAudioIO() {
+    if (audio_io_) {
+        audio_io_->StopStreams();
+    }
+}
+
+bool AudioAgentPipeline::ResumeAudioIO() {
+    if (!is_running_.load(std::memory_order_acquire)) return false;
+    if (audio_io_) {
+        return audio_io_->StartStreams();
+    }
+    return false;
+}
+
 void AudioAgentPipeline::SetState(AgentState new_state) {
     AgentState old_state = state_.exchange(new_state, std::memory_order_acq_rel);
     if (old_state != new_state && observer_.on_state_changed) {

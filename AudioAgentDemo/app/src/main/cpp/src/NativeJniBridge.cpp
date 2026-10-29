@@ -611,6 +611,29 @@ Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeStop(
 }
 
 JNIEXPORT void JNICALL
+Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativePauseAudioIO(
+    JNIEnv* /*env*/,
+    jobject /*thiz*/,
+    jlong handle
+) {
+    auto* ctx = reinterpret_cast<JniBridgeContext*>(handle);
+    if (ctx && ctx->pipeline) {
+        ctx->pipeline->PauseAudioIO();
+    }
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeResumeAudioIO(
+    JNIEnv* /*env*/,
+    jobject /*thiz*/,
+    jlong handle
+) {
+    auto* ctx = reinterpret_cast<JniBridgeContext*>(handle);
+    if (!ctx || !ctx->pipeline) return JNI_FALSE;
+    return ctx->pipeline->ResumeAudioIO() ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT void JNICALL
 Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeTriggerBargeIn(
     JNIEnv* /*env*/,
     jobject /*thiz*/,

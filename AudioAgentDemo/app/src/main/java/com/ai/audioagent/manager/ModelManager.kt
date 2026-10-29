@@ -52,12 +52,12 @@ object ModelManager {
         ModelFileInfo(
             name = "config.json",
             url = "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/config.json",
-            approxBytes = 1450L
+            approxBytes = 159L
         ),
         ModelFileInfo(
             name = "llm_config.json",
             url = "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/llm_config.json",
-            approxBytes = 720L
+            approxBytes = 272L
         ),
         ModelFileInfo(
             name = "tokenizer.txt",
@@ -130,7 +130,7 @@ object ModelManager {
         val dir = getLlmModelDir(context)
         return LLM_MODEL_FILES.all { fileInfo ->
             val f = File(dir, fileInfo.name)
-            f.exists() && f.length() > 500L
+            f.exists() && f.length() > (if (fileInfo.name.endsWith(".json")) 50L else 500L)
         }
     }
 
@@ -159,7 +159,7 @@ object ModelManager {
                 val destFile = File(targetDir, fileInfo.name)
                 val tempFile = File(targetDir, "${fileInfo.name}.tmp")
 
-                if (destFile.exists() && destFile.length() >= fileInfo.approxBytes * 0.9) {
+                if (destFile.exists() && destFile.length() >= (if (fileInfo.approxBytes < 1000L) 50L else (fileInfo.approxBytes * 0.8).toLong())) {
                     totalBytesDownloadedSoFar += destFile.length()
                     val pct = ((totalBytesDownloadedSoFar.toDouble() / TOTAL_LLM_BYTES) * 100).toInt().coerceIn(0, 100)
                     withContext(Dispatchers.Main) {

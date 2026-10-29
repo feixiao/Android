@@ -63,6 +63,12 @@ public:
     // Stop all pipeline threads and audio IO streams
     void Stop();
 
+    // Temporarily pause audio IO streams (e.g. to release microphone for system SpeechRecognizer)
+    void PauseAudioIO();
+
+    // Resume audio IO streams
+    bool ResumeAudioIO();
+
     // Trigger Barge-in interrupt (called by VAD thread or manual button)
     void TriggerBargeIn();
 
