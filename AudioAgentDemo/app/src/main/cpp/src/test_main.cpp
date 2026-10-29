@@ -5,13 +5,14 @@
 #include "ThreeTierMemory.hpp"
 #include "FullDuplexAudioIO.hpp"
 #include "AudioAgentPipeline.hpp"
-
 #include <iostream>
+#include <sstream>
 #include <cassert>
 #include <chrono>
 #include <thread>
 #include <cmath>
-
+#include <regex>
+#include <ctime>
 using namespace audio_agent;
 
 // ANSI Colors for test reporter
@@ -439,13 +440,367 @@ static void TestCpuAffinity() {
 
     LogPass("CPU Affinity Detection passed.");
 }
+// -------------------------------------------------------------
+// Test 7: LockFreeSPSCRingBuffer Edge Cases (Overflow/Underflow)
+// -------------------------------------------------------------
+static void TestRingBufferEdgeCases() {
+    LogTest("LockFreeSPSCRingBuffer Edge Cases & Capacity Limits");
+
+    LockFreeSPSCRingBuffer<float> rb(10);
+    assert(rb.capacity() == 10);
+
+    // 1. Underflow: read from empty buffer returns 0
+    float dummy = 0.0f;
+    assert(rb.read(&dummy, 1) == 0);
+
+    // 2. Single-sample writes and reads
+    for (int i = 0; i < 100; ++i) {
+        float sample = static_cast<float>(i);
+        assert(rb.write(&sample, 1) == 1);
+        float out = 0.0f;
+        assert(rb.read(&out, 1) == 1);
+        assert(out == sample);
+    }
+    assert(rb.empty());
+
+    // 3. Overflow: write more than capacity (capped at available capacity)
+    std::vector<float> overflow_data(15, 1.0f);
+    size_t written = rb.write(overflow_data.data(), 15);
+    assert(written == 10);
+    assert(rb.available_write() == 0);
+    assert(rb.available_read() == 10);
+
+    // Attempting to write when full returns 0
+    assert(rb.write(overflow_data.data(), 1) == 0);
+
+    rb.clear();
+    assert(rb.empty());
+
+    LogPass("LockFreeSPSCRingBuffer Edge Cases passed.");
+}
+
+// -------------------------------------------------------------
+// Test 8: FullDuplexAudioIO Lifecycle & Zero-Fill
+// -------------------------------------------------------------
+static void TestFullDuplexAudioIO() {
+    LogTest("FullDuplexAudioIO Lifecycle, Streaming & Zero-Fill");
+
+    auto mic_rb = std::make_shared<LockFreeSPSCRingBuffer<float>>(16000 * 2);
+    auto spk_rb = std::make_shared<LockFreeSPSCRingBuffer<float>>(24000 * 2);
+
+    FullDuplexAudioIO audio_io(mic_rb, spk_rb, 16000, 24000);
+    assert(audio_io.GetMicSampleRate() == 16000);
+    assert(audio_io.GetSpkSampleRate() == 24000);
+    assert(!audio_io.IsRunning());
+
+    bool started = audio_io.StartStreams();
+    assert(started);
+    assert(audio_io.IsRunning());
+
+    // 1. Test mic simulation injection
+    std::vector<float> mic_samples(512, 0.42f);
+    size_t written = audio_io.SimulateMicInput(mic_samples.data(), mic_samples.size());
+    assert(written == 512);
+    assert(mic_rb->available_read() == 512);
+
+    // 2. Test speaker simulation extraction
+    std::vector<float> spk_in(480, 0.88f);
+    spk_rb->write(spk_in.data(), spk_in.size());
+    assert(spk_rb->available_read() == 480);
+
+    std::vector<float> spk_out(480, 0.0f);
+    size_t pulled = audio_io.SimulateSpeakerOutput(spk_out.data(), spk_out.size());
+    assert(pulled == 480);
+    assert(std::abs(spk_out[0] - 0.88f) < 1e-5f);
+    assert(spk_rb->available_read() == 0);
+
+#if !defined(AUDIO_AGENT_USE_OBOE)
+    // 3. Test mock output frames underrun protection (zero-fill)
+    std::vector<float> partial(50, 0.5f);
+    spk_rb->write(partial.data(), partial.size());
+
+    std::vector<float> mock_out(200, 99.0f);
+    audio_io.ProcessMockOutputFrames(mock_out.data(), 200);
+
+    for (int i = 0; i < 50; ++i) assert(std::abs(mock_out[i] - 0.5f) < 1e-5f);
+    for (int i = 50; i < 200; ++i) assert(std::abs(mock_out[i] - 0.0f) < 1e-5f);
+#endif
+
+    audio_io.StopStreams();
+    assert(!audio_io.IsRunning());
+
+    LogPass("FullDuplexAudioIO passed all lifecycle and zero-fill tests.");
+}
+
+// -------------------------------------------------------------
+// Test 9: Perception VAD Energy & Endpointing
+// -------------------------------------------------------------
+class TestVadPerceptionEngine : public ISpeechPerceptionEngine {
+public:
+    bool AcceptAudioChunk(const float* samples, int32_t count) override {
+        float energy = 0.0f;
+        for (int i = 0; i < count; ++i) energy += std::abs(samples[i]);
+        float avg_energy = count > 0 ? (energy / count) : 0.0f;
+
+        bool is_voice = avg_energy > 0.035f;
+        if (is_voice) {
+            speech_frames_++;
+            silence_frames_ = 0;
+            if (speech_frames_ >= 3) {
+                in_speech_ = true;
+                endpoint_ = false;
+            }
+        } else {
+            if (in_speech_) {
+                silence_frames_++;
+                if (silence_frames_ >= 10) {
+                    endpoint_ = true;
+                    in_speech_ = false;
+                    speech_frames_ = 0;
+                    silence_frames_ = 0;
+                }
+            }
+        }
+        return is_voice;
+    }
+
+    bool IsEndpointDetected() override { return endpoint_; }
+    std::string GetRecognizedText(bool is_final) override {
+        if (is_final) {
+            endpoint_ = false;
+            return recognized_;
+        }
+        return in_speech_ ? "正在倾听..." : "";
+    }
+    void Reset() override {
+        endpoint_ = false;
+        in_speech_ = false;
+        speech_frames_ = 0;
+        silence_frames_ = 0;
+        recognized_.clear();
+    }
+    void SetRecognized(const std::string& text) { recognized_ = text; }
+    bool InSpeech() const { return in_speech_; }
+
+private:
+    bool endpoint_{false};
+    bool in_speech_{false};
+    int speech_frames_{0};
+    int silence_frames_{0};
+    std::string recognized_;
+};
+
+static void TestPerceptionVAD() {
+    LogTest("Perception VAD Energy Detection and Endpointing");
+
+    TestVadPerceptionEngine vad;
+    std::vector<float> silence_chunk(512, 0.01f);
+    std::vector<float> speech_chunk(512, 0.12f);
+
+    // 1. Silence should not trigger voice
+    for (int i = 0; i < 5; ++i) {
+        bool active = vad.AcceptAudioChunk(silence_chunk.data(), 512);
+        assert(!active);
+        assert(!vad.InSpeech());
+        assert(!vad.IsEndpointDetected());
+    }
+
+    // 2. Feed 2 speech frames (under 3 frames onset threshold)
+    assert(vad.AcceptAudioChunk(speech_chunk.data(), 512));
+    assert(!vad.InSpeech());
+    assert(vad.AcceptAudioChunk(speech_chunk.data(), 512));
+    assert(!vad.InSpeech());
+
+    // 3. 3rd speech frame triggers speech active!
+    assert(vad.AcceptAudioChunk(speech_chunk.data(), 512));
+    assert(vad.InSpeech());
+    assert(vad.GetRecognizedText(false) == "正在倾听...");
+
+    // 4. Feed 10 silence frames to reach endpoint cutoff
+    for (int i = 0; i < 9; ++i) {
+        vad.AcceptAudioChunk(silence_chunk.data(), 512);
+        assert(vad.InSpeech());
+        assert(!vad.IsEndpointDetected());
+    }
+    vad.AcceptAudioChunk(silence_chunk.data(), 512);
+    assert(!vad.InSpeech());
+    assert(vad.IsEndpointDetected());
+
+    vad.SetRecognized("把空调调到24度");
+    assert(vad.GetRecognizedText(true) == "把空调调到24度");
+    assert(!vad.IsEndpointDetected());
+
+    vad.Reset();
+    assert(!vad.InSpeech());
+    assert(!vad.IsEndpointDetected());
+
+    LogPass("Perception VAD energy thresholds and endpointing passed.");
+}
+
+// -------------------------------------------------------------
+// Test 10: Dynamic Intent Parsing, Real-time Clock & Tool Calling
+// -------------------------------------------------------------
+class TestDynamicLlmEngine : public ILlmEngine {
+public:
+    void ResponseStream(const std::string& prompt, std::ostream* out_stream) override {
+        if (!out_stream) return;
+        std::string query = prompt;
+        size_t pos = prompt.rfind("<|im_start|>user\n");
+        if (pos != std::string::npos) {
+            size_t start = pos + std::string("<|im_start|>user\n").length();
+            size_t end = prompt.find("<|im_end|>", start);
+            if (end != std::string::npos) query = prompt.substr(start, end - start);
+            else query = prompt.substr(start);
+        }
+        time_t now = std::time(nullptr);
+        tm* ltm = std::localtime(&now);
+        char time_buf[64] = {0};
+        std::strftime(time_buf, sizeof(time_buf), "%H点%M分", ltm);
+
+        if (query.find("几点") != std::string::npos || query.find("时间") != std::string::npos) {
+            *out_stream << "现在是北京时间 " << time_buf << "。";
+        } else if (query.find("空调") != std::string::npos || query.find("温度") != std::string::npos) {
+            if (query.find("关") != std::string::npos) {
+                *out_stream << "好的，已为您关闭空调。<|tool_call|>{\"action\":\"set_ac_power\",\"state\":\"off\"}<|/tool_call|>";
+            } else {
+                int temp = 24;
+                std::regex num_reg(R"((\d{2}))");
+                std::smatch m;
+                if (std::regex_search(query, m, num_reg)) {
+                    int val = std::stoi(m[1].str());
+                    if (val >= 16 && val <= 32) temp = val;
+                }
+                *out_stream << "没问题，已调至" << temp << "度。<|tool_call|>{\"action\":\"set_ac_temp\",\"value\":" << temp << "}<|/tool_call|>";
+            }
+        } else if (query.find("导航") != std::string::npos || query.find("去") != std::string::npos) {
+            std::string dest = "杭州西湖文化广场";
+            size_t p = query.find("去");
+            if (p == std::string::npos) p = query.find("到");
+            if (p != std::string::npos && p + 3 < query.size()) {
+                dest = query.substr(p + 3);
+            }
+            *out_stream << "好的，马上为您规划前往" << dest << "的最佳路线。<|tool_call|>{\"action\":\"start_nav\",\"dest\":\"" << dest << "\"}<|/tool_call|>";
+        } else if (query.find("蓝") != std::string::npos || query.find("为什么") != std::string::npos) {
+            *out_stream << "这叫瑞利散射。阳光里的蓝光容易被空气散射。";
+        } else {
+            *out_stream << "关于您提到的“" << query << "”，我已经认真接收到了。";
+        }
+        out_stream->flush();
+    }
+    void RollbackTokens(size_t) override {}
+    bool WarmupPrefix(const std::string&) override { return true; }
+};
+
+static void TestDynamicCognition() {
+    LogTest("Dynamic Intent Parsing, Real-time Clock & Tool Calling");
+
+    TestDynamicLlmEngine llm;
+
+    // 1. Dynamic Clock
+    {
+        std::stringstream ss;
+        llm.ResponseStream("现在几点了？", &ss);
+        std::string reply = ss.str();
+        assert(reply.find("北京时间") != std::string::npos);
+        assert(reply.find("点") != std::string::npos);
+    }
+
+    // 2. Dynamic AC Temperature
+    {
+        std::stringstream ss;
+        llm.ResponseStream("把空调调到28度", &ss);
+        std::string reply = ss.str();
+        assert(reply.find("已调至28度") != std::string::npos);
+        assert(reply.find("{\"action\":\"set_ac_temp\",\"value\":28}") != std::string::npos);
+    }
+
+    // 3. Dynamic AC Turn Off
+    {
+        std::stringstream ss;
+        llm.ResponseStream("把空调关掉", &ss);
+        std::string reply = ss.str();
+        assert(reply.find("{\"action\":\"set_ac_power\",\"state\":\"off\"}") != std::string::npos);
+    }
+
+    // 4. Dynamic Destination Navigation
+    {
+        std::stringstream ss;
+        llm.ResponseStream("导航去北京天安门广场", &ss);
+        std::string reply = ss.str();
+        assert(reply.find("北京天安门广场") != std::string::npos);
+        assert(reply.find("{\"action\":\"start_nav\",\"dest\":\"北京天安门广场\"}") != std::string::npos);
+    }
+
+    // 5. Query Quoting Fallback
+    {
+        std::stringstream ss;
+        llm.ResponseStream("我想买一台轻薄笔记本电脑", &ss);
+        std::string reply = ss.str();
+        assert(reply.find("我想买一台轻薄笔记本电脑") != std::string::npos);
+    }
+
+    LogPass("Dynamic Intent Parsing and Tool Calling passed all tests.");
+}
+
+// -------------------------------------------------------------
+// Test 11: Multi-Turn Full-Duplex Dialogue & Memory Continuity
+// -------------------------------------------------------------
+static void TestMultiTurnDialogue() {
+    LogTest("Multi-Turn Full-Duplex Dialogue Continuity");
+
+    auto perception = std::make_shared<SimulatedPerceptionEngine>();
+    auto llm = std::make_shared<TestDynamicLlmEngine>();
+    auto tts = std::make_shared<SimulatedTtsEngine>();
+
+    std::vector<std::string> spoken_sentences;
+    std::vector<std::string> tool_calls;
+
+    PipelineObserver observer;
+    observer.on_tts_sentence_start = [&](const std::string& sentence) {
+        spoken_sentences.push_back(sentence);
+    };
+    observer.on_tool_call = [&](const std::string& tool_json) {
+        tool_calls.push_back(tool_json);
+    };
+
+    AudioAgentPipeline pipeline(perception, llm, tts, observer);
+    pipeline.Start();
+
+    // Turn 1: Time query
+    pipeline.SubmitUserQuery("请问现在几点了？");
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    assert(!spoken_sentences.empty());
+    assert(pipeline.GetMemory().GetActiveTurns().size() == 1);
+
+    // Turn 2: AC tool call
+    spoken_sentences.clear();
+    pipeline.SubmitUserQuery("把空调调到26度");
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    assert(!tool_calls.empty());
+    assert(tool_calls.back().find("26") != std::string::npos);
+    assert(pipeline.GetMemory().GetActiveTurns().size() == 2);
+
+    // Turn 3: Navigation tool call
+    tool_calls.clear();
+    pipeline.SubmitUserQuery("导航去杭州西湖文化广场");
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    assert(!tool_calls.empty());
+    assert(tool_calls.back().find("杭州西湖文化广场") != std::string::npos);
+    assert(pipeline.GetMemory().GetActiveTurns().size() == 3);
+
+    pipeline.Stop();
+    LogPass("Multi-Turn Full-Duplex Dialogue Continuity passed.");
+}
 
 int main() {
     std::cout << "\n=======================================================\n";
-    std::cout << "  Android AI Audio Agent C++17 Smoke Test Suite\n";
+    std::cout << "  Android AI Audio Agent C++17 Unit Test Suite\n";
     std::cout << "=======================================================\n\n";
 
     TestRingBuffer();
+    std::cout << std::endl;
+
+    TestRingBufferEdgeCases();
     std::cout << std::endl;
 
     TestSentenceChunker();
@@ -457,12 +812,24 @@ int main() {
     TestThreeTierMemory();
     std::cout << std::endl;
 
+    TestFullDuplexAudioIO();
+    std::cout << std::endl;
+
+    TestPerceptionVAD();
+    std::cout << std::endl;
+
+    TestDynamicCognition();
+    std::cout << std::endl;
+
     TestFullDuplexPipeline();
+    std::cout << std::endl;
+
+    TestMultiTurnDialogue();
     std::cout << std::endl;
 
     TestCpuAffinity();
     std::cout << std::endl;
 
-    std::cout << COLOR_GREEN << "ALL 6 TEST SUITES PASSED SUCCESSFULLY!" << COLOR_RESET << "\n\n";
+    std::cout << COLOR_GREEN << "ALL 11 TEST SUITES PASSED SUCCESSFULLY!" << COLOR_RESET << "\n\n";
     return 0;
 }

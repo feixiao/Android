@@ -345,15 +345,25 @@ void AudioAgentPipeline::ExpressionWorkerLoop() {
         }
 
         // Check if all queued sentences are spoken
+        bool queue_empty = false;
         {
             std::lock_guard<std::mutex> lock(tts_mtx_);
-            if (tts_queue_.empty() && !IsBargeInAborted()) {
-                // Wait for speaker ring buffer to empty
-                while (spk_ring_buffer_ && spk_ring_buffer_->available_read() > 0 &&
-                       !IsBargeInAborted() && is_running_.load(std::memory_order_acquire)) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            queue_empty = tts_queue_.empty();
+        }
+
+        if (queue_empty && !IsBargeInAborted()) {
+            // Wait for speaker ring buffer to empty without holding tts_mtx_!
+            while (spk_ring_buffer_ && spk_ring_buffer_->available_read() > 0 &&
+                   !IsBargeInAborted() && is_running_.load(std::memory_order_acquire)) {
+                {
+                    std::lock_guard<std::mutex> lock(tts_mtx_);
+                    if (!tts_queue_.empty()) break;
                 }
-                if (!IsBargeInAborted() && state_.load(std::memory_order_acquire) == AgentState::SPEAKING) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            }
+            if (!IsBargeInAborted() && state_.load(std::memory_order_acquire) == AgentState::SPEAKING) {
+                std::lock_guard<std::mutex> lock(tts_mtx_);
+                if (tts_queue_.empty()) {
                     SetState(AgentState::IDLE);
                 }
             }
