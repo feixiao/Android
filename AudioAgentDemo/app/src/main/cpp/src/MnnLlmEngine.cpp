@@ -227,16 +227,17 @@ void MnnLlmEngine::ResponseStream(const std::string& prompt, std::ostream* out_s
     // 模拟 Prefill 计算延迟
     std::this_thread::sleep_for(std::chrono::milliseconds(prefill_latency_ms));
 
-    // 3. 优先执行真实 MNN 神经网络推理，若未下载权重则执行本地决策仿真引擎
+    // 3. 【真实神经网络路径】：若已下载并加载 MNN 真实模型权重，100% 走本地 LLM 神经网络推理
     if (mnn_loaded_ && mnn_instance_ && mnn_lib_handle_) {
 #if defined(__ANDROID__) || defined(__linux__) || defined(__APPLE__)
         auto responseFn = reinterpret_cast<void(*)(void*, const std::string&, std::ostream*, const char*, int)>(
             dlsym(mnn_lib_handle_, "_ZN3MNN11Transformer3Llm8responseERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEPNS2_13basic_ostreamIcS5_EEPKci")
         );
         if (responseFn) {
-            LOGI("Executing REAL MNN neural network inference for query: %s", query.c_str());
+            LOGI("Executing REAL MNN Qwen neural network inference (Prompt length: %zu chars)...", prompt.size());
             auto real_start = std::chrono::steady_clock::now();
-            responseFn(mnn_instance_, query, out_stream, nullptr, 128);
+            // 将包含 ChatML System Prompt 与多轮历史记忆的完整 prompt 输入神经网络
+            responseFn(mnn_instance_, prompt, out_stream, nullptr, 256);
             auto real_end = std::chrono::steady_clock::now();
             int64_t dur = std::chrono::duration_cast<std::chrono::milliseconds>(real_end - real_start).count();
             {
@@ -253,6 +254,9 @@ void MnnLlmEngine::ResponseStream(const std::string& prompt, std::ostream* out_s
         }
 #endif
     }
+
+    // 4. 【离线降级兜底路径】：仅在尚未从界面下载 350MB 权重、或在宿主机（如 Mac make test 无法运行 ARM64 so）时触发
+    LOGW("MNN weights not loaded on disk. Running in offline rule-based simulation mode. Please download Qwen2.5-0.5B model from UI to activate real neural network!");
 
     // 仿真兜底：当离线权重尚未下载完成时，基于真实时钟与意图槽位匹配输出
     std::string full_answer = GenerateAnswer(query);
