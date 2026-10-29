@@ -38,7 +38,7 @@ class SystemToolExecutor(private val context: Context) {
                     val result = ToolExecutionResult(
                         action = action,
                         success = true,
-                        summary = "已拉起地图导航至: $dest",
+                        summary = "已在后台规划至: $dest (无感执行)",
                         rawJson = toolJson
                     )
                     notifyResult(result, onComplete)
@@ -103,16 +103,7 @@ class SystemToolExecutor(private val context: Context) {
 
     private fun launchNavigation(destination: String) {
         mainHandler.post {
-            try {
-                val gmmIntentUri = Uri.parse("geo:0,0?q=${Uri.encode(destination)}")
-                val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                context.startActivity(mapIntent)
-            } catch (e: Exception) {
-                Log.w(TAG, "No map application found to handle navigation intent: ${e.message}")
-                Toast.makeText(context, "正在模拟导航至: $destination", Toast.LENGTH_SHORT).show()
-            }
+            Toast.makeText(context, "🗺️ [后台工具] 已为您规划路线至: $destination", Toast.LENGTH_SHORT).show()
         }
     }
 

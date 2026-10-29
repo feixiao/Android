@@ -202,6 +202,47 @@
                 android:textSize="12sp" />
         </LinearLayout>
     </HorizontalScrollView>
+    <!-- Text Chat Input Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/etCustomQuery"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="@color/surface_card"
+            android:hint="输入文字对聊，或直接对着手机说话..."
+            android:textColorHint="@color/text_secondary"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp"
+            android:paddingHorizontal="12dp"
+            android:singleLine="true" />
+
+        <Button
+            android:id="@+id/btnVoice"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:layout_marginStart="6dp"
+            android:backgroundTint="@color/primary_accent"
+            android:text="🎙️ 说话"
+            android:textColor="@color/black"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnSend"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:layout_marginStart="6dp"
+            android:backgroundTint="@color/primary_blue"
+            android:text="发送"
+            android:textColor="@color/white"
+            android:textSize="13sp" />
+    </LinearLayout>
 
     <!-- Barge-in Trigger Button -->
     <Button

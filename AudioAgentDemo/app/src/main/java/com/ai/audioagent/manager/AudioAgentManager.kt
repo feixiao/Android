@@ -6,7 +6,9 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
 import android.os.PowerManager
+import android.speech.tts.TextToSpeech
 import android.util.Log
+import java.util.Locale
 import com.ai.audioagent.nativebridge.AgentState
 import com.ai.audioagent.nativebridge.AudioAgentListener
 import com.ai.audioagent.nativebridge.AudioAgentNative
@@ -24,7 +26,8 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
     private val toolExecutor = SystemToolExecutor(appContext)
     private val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
-
+    private var textToSpeech: TextToSpeech? = null
+    private var isTtsReady = false
     private val listeners = CopyOnWriteArrayList<AudioAgentListener>()
     private val toolListeners = CopyOnWriteArrayList<(ToolExecutionResult) -> Unit>()
 
@@ -38,6 +41,7 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
 
     init {
         registerThermalListener()
+        initTextToSpeech()
     }
 
     fun addListener(listener: AudioAgentListener) {
@@ -77,12 +81,14 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
 
     fun stop() {
         if (!isRunning) return
+        textToSpeech?.stop()
         nativeEngine.stop()
         abandonAudioFocus()
         isRunning = false
     }
 
     fun triggerBargeIn() {
+        textToSpeech?.stop()
         nativeEngine.triggerBargeIn()
     }
 
@@ -141,6 +147,19 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
             }
         }
     }
+    private fun initTextToSpeech() {
+        textToSpeech = TextToSpeech(appContext) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val res = textToSpeech?.setLanguage(Locale.CHINESE)
+                if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    textToSpeech?.setLanguage(Locale.US)
+                }
+                isTtsReady = true
+                Log.i(TAG, "Android TextToSpeech initialized successfully")
+            }
+        }
+    }
+
 
     // -------------------------------------------------------------
     // AudioAgentListener Implementation
@@ -166,6 +185,9 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
     }
 
     override fun onTtsSentenceStart(sentence: String) {
+        if (isTtsReady) {
+            textToSpeech?.speak(sentence, TextToSpeech.QUEUE_ADD, null, "tts_${System.currentTimeMillis()}")
+        }
         for (l in listeners) {
             l.onTtsSentenceStart(sentence)
         }
@@ -184,6 +206,7 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
     }
 
     override fun onBargeIn(spokenTextRetained: String) {
+        textToSpeech?.stop()
         for (l in listeners) {
             l.onBargeIn(spokenTextRetained)
         }

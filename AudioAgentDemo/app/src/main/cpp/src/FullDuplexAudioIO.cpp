@@ -110,20 +110,56 @@ oboe::DataCallbackResult FullDuplexAudioIO::onAudioReady(
     int32_t numFrames
 ) {
     auto* float_ptr = static_cast<float*>(audioData);
+    int32_t channelCount = stream->getChannelCount();
+    int32_t totalSamples = numFrames * channelCount;
 
     if (stream->getDirection() == oboe::Direction::Input) {
-        // High priority audio thread: zero mutex, zero malloc! Direct write to lock-free SPSC
+        // High priority audio thread: zero mutex, zero malloc!
         if (mic_ring_buffer_) {
-            mic_ring_buffer_->write(float_ptr, numFrames);
+            if (channelCount <= 1) {
+                mic_ring_buffer_->write(float_ptr, numFrames);
+            } else {
+                // Downmix stereo mic to mono (16kHz mono) for VAD/ASR
+                float mono_buf[1024];
+                int32_t count = std::min(numFrames, 1024);
+                for (int32_t i = 0; i < count; ++i) {
+                    mono_buf[i] = 0.5f * (float_ptr[i * channelCount] + float_ptr[i * channelCount + 1]);
+                }
+                mic_ring_buffer_->write(mono_buf, count);
+            }
         }
     } else {
-        // Read synthesized TTS frames from speaker ring buffer. If underrun, fill silence 0.0f
-        size_t read_count = 0;
-        if (spk_ring_buffer_) {
-            read_count = spk_ring_buffer_->read(float_ptr, numFrames);
-        }
-        if (read_count < static_cast<size_t>(numFrames)) {
-            std::fill(float_ptr + read_count, float_ptr + numFrames, 0.0f);
+        // Read synthesized TTS frames from speaker ring buffer.
+        // Crucial: ALL channels up to totalSamples MUST be completely written or zero-filled,
+        // otherwise uninitialized memory in channel 2 blasts loud static/white noise.
+        if (channelCount <= 1) {
+            size_t read_count = 0;
+            if (spk_ring_buffer_) {
+                read_count = spk_ring_buffer_->read(float_ptr, numFrames);
+            }
+            if (read_count < static_cast<size_t>(numFrames)) {
+                std::fill(float_ptr + read_count, float_ptr + numFrames, 0.0f);
+            }
+        } else {
+            // Stereo output: read mono from ring buffer and duplicate to L & R
+            float mono_buf[1024];
+            int32_t count = std::min(numFrames, 1024);
+            size_t read_count = 0;
+            if (spk_ring_buffer_) {
+                read_count = spk_ring_buffer_->read(mono_buf, count);
+            }
+            if (read_count < static_cast<size_t>(count)) {
+                std::fill(mono_buf + read_count, mono_buf + count, 0.0f);
+            }
+            for (int32_t i = 0; i < count; ++i) {
+                float sample = mono_buf[i];
+                for (int32_t c = 0; c < channelCount; ++c) {
+                    float_ptr[i * channelCount + c] = sample;
+                }
+            }
+            if (totalSamples > count * channelCount) {
+                std::fill(float_ptr + count * channelCount, float_ptr + totalSamples, 0.0f);
+            }
         }
     }
     return oboe::DataCallbackResult::Continue;

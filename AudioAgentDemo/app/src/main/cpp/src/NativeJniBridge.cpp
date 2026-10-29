@@ -21,55 +21,117 @@ public:
     bool AcceptAudioChunk(const float* samples, int32_t count) override {
         float energy = 0.0f;
         for (int i = 0; i < count; ++i) energy += std::abs(samples[i]);
-        return (energy / count) > 0.02f;
+        float avg_energy = count > 0 ? (energy / count) : 0.0f;
+
+        // Increased threshold to 0.035f so background room noise does not falsely trigger
+        bool is_voice = avg_energy > 0.035f;
+        if (is_voice) {
+            speech_frames_++;
+            silence_frames_ = 0;
+            if (speech_frames_ >= 3) {
+                in_speech_ = true;
+                endpoint_ = false;
+            }
+        } else {
+            if (in_speech_) {
+                silence_frames_++;
+                // ~320ms silence endpointing per Section 1.3 Latency Budget
+                if (silence_frames_ >= 10) {
+                    endpoint_ = true;
+                    in_speech_ = false;
+                    speech_frames_ = 0;
+                    silence_frames_ = 0;
+                }
+            }
+        }
+        return is_voice;
     }
 
     bool IsEndpointDetected() override {
         return endpoint_;
     }
 
-    std::string GetRecognizedText(bool /*is_final*/) override {
-        return text_;
+    std::string GetRecognizedText(bool is_final) override {
+        if (is_final) {
+            endpoint_ = false;
+            if (!manual_text_.empty()) {
+                std::string res = manual_text_;
+                manual_text_.clear();
+                return res;
+            }
+            // Do NOT fabricate hallucinated queries on noise.
+            return "";
+        }
+        return in_speech_ ? "正在倾听..." : "";
     }
 
     void Reset() override {
         endpoint_ = false;
-        text_.clear();
-    }
-
-    void SetRecognized(const std::string& t, bool endpoint) {
-        text_ = t;
-        endpoint_ = endpoint;
+        in_speech_ = false;
+        speech_frames_ = 0;
+        silence_frames_ = 0;
+        manual_text_.clear();
     }
 
 private:
-    std::string text_;
+    std::string manual_text_;
     bool endpoint_{false};
+    bool in_speech_{false};
+    int speech_frames_{0};
+    int silence_frames_{0};
 };
 
 class DemoLlmEngine : public ILlmEngine {
 public:
-    void ResponseStream(const std::string& query, std::ostream* out_stream) override {
+    void ResponseStream(const std::string& prompt, std::ostream* out_stream) override {
         if (!out_stream) return;
 
-        // Simulate intelligent response with fast 6-byte first sentence & tool call support
-        if (query.find("导航") != std::string::npos || query.find("去") != std::string::npos) {
-            *out_stream << "好的，";
+        // Extract current turn query from multi-tier conversation context
+        std::string query = prompt;
+        size_t pos = prompt.rfind("<|im_start|>user\n");
+        if (pos != std::string::npos) {
+            size_t start = pos + std::string("<|im_start|>user\n").length();
+            size_t end = prompt.find("<|im_end|>", start);
+            if (end != std::string::npos) {
+                query = prompt.substr(start, end - start);
+            } else {
+                query = prompt.substr(start);
+            }
+        }
+
+        // Rich conversational responses matching Section 5.2 SFT targets
+        if (query.find("你好") != std::string::npos || query.find("在吗") != std::string::npos || query.find("嗨") != std::string::npos) {
+            *out_stream << "你好呀！我是本地全双工AI语音助手，支持随时插话打断。请问今天有什么我可以帮您的？";
             out_stream->flush();
-            std::this_thread::sleep_for(std::chrono::milliseconds(80));
-            *out_stream << "马上为您规划最佳路线。<|tool_call|>{\"action\":\"start_nav\",\"dest\":\"杭州西湖文化广场\"}<|/tool_call|>";
+        } else if (query.find("天气") != std::string::npos || query.find("气温") != std::string::npos || query.find("下雨") != std::string::npos) {
+            *out_stream << "今天天气晴朗，";
+            out_stream->flush();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            *out_stream << "气温二十二度，微风舒适，非常适合外出。";
             out_stream->flush();
         } else if (query.find("空调") != std::string::npos || query.find("温度") != std::string::npos) {
             *out_stream << "没问题，";
             out_stream->flush();
-            std::this_thread::sleep_for(std::chrono::milliseconds(80));
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
             *out_stream << "已调至二十四度。<|tool_call|>{\"action\":\"set_ac_temp\",\"value\":24}<|/tool_call|>";
+            out_stream->flush();
+        } else if (query.find("导航") != std::string::npos || query.find("去西湖") != std::string::npos || query.find("路线") != std::string::npos) {
+            *out_stream << "好的，";
+            out_stream->flush();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            *out_stream << "马上为您规划最佳路线。<|tool_call|>{\"action\":\"start_nav\",\"dest\":\"杭州西湖文化广场\"}<|/tool_call|>";
+            out_stream->flush();
+        } else if (query.find("蓝") != std::string::npos || query.find("天空") != std::string::npos || query.find("为什么") != std::string::npos) {
+            *out_stream << "这叫瑞利散射。";
+            out_stream->flush();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            *out_stream << "简单说，阳光里的蓝光波长短，穿过大气层时容易被空气分子散射，所以咱们抬头看到的天空就是蓝色的。";
             out_stream->flush();
         } else {
             *out_stream << "明白，";
             out_stream->flush();
-            std::this_thread::sleep_for(std::chrono::milliseconds(60));
-            *out_stream << "我已接收到您的语音指令。我是端侧纯本地运行的全双工助手，支持随时插话打断。";
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            *out_stream << "我已接收到您的指令。我是端侧纯本地运行的智能助手，支持随时插话打断与异步工具调用。";
             out_stream->flush();
         }
     }
@@ -80,14 +142,21 @@ public:
 
 class DemoTtsEngine : public ISpeechSynthesisEngine {
 public:
-    bool SynthesizeStreaming(const std::string& /*text*/, AudioChunkCallback callback) override {
+    bool SynthesizeStreaming(const std::string& text, AudioChunkCallback callback) override {
         const int CHUNK_SIZE = 480; // 20ms at 24kHz
-        std::vector<float> pcm(CHUNK_SIZE, 0.2f);
-        // Synthesize 5 chunks (100ms audio)
-        for (int i = 0; i < 5; ++i) {
+        std::vector<float> pcm(CHUNK_SIZE, 0.0f);
+        size_t num_chunks = std::max<size_t>(3, (text.size() / 3) * 2);
+        if (num_chunks > 15) num_chunks = 15;
+
+        for (size_t c = 0; c < num_chunks; ++c) {
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
-            int rc = callback(pcm.data(), CHUNK_SIZE, (i + 1) * 0.2f);
-            if (rc == 0) return false;
+            float freq = 480.0f;
+            for (int i = 0; i < CHUNK_SIZE; ++i) {
+                float t = static_cast<float>(c * CHUNK_SIZE + i) / 24000.0f;
+                pcm[i] = 0.04f * std::sin(2.0f * 3.14159265f * freq * t);
+            }
+            int rc = callback(pcm.data(), CHUNK_SIZE, static_cast<float>(c + 1) / num_chunks);
+            if (rc == 0) return false; // Aborted by Barge-in
         }
         return true;
     }

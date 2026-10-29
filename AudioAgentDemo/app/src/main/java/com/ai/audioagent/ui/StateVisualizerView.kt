@@ -47,12 +47,19 @@ class StateVisualizerView @JvmOverloads constructor(
     }
 
     init {
-        animator.start()
+        // Started on demand when entering non-IDLE states to conserve CPU & battery
     }
 
     fun setState(state: AgentState) {
         if (currentState != state) {
             currentState = state
+            if (state == AgentState.IDLE) {
+                animator.cancel()
+            } else {
+                if (!animator.isRunning) {
+                    animator.start()
+                }
+            }
             invalidate()
         }
     }

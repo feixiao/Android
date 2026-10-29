@@ -34,6 +34,10 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
     private lateinit var btnNavPrompt: Button
     private lateinit var btnAcPrompt: Button
     private lateinit var btnSkyPrompt: Button
+    private lateinit var etCustomQuery: android.widget.EditText
+    private lateinit var btnVoice: Button
+    private lateinit var btnSend: Button
+    private var speechRecognizer: android.speech.SpeechRecognizer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,6 +46,16 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
         initViews()
         initAgent()
         checkPermissionsAndStart()
+    }
+
+    override fun onNewIntent(intent: android.content.Intent?) {
+        super.onNewIntent(intent)
+        intent?.getStringExtra("query")?.let { q ->
+            if (q.isNotEmpty()) {
+                appendLog("[用户问] $q")
+                agentManager.submitUserQuery(q)
+            }
+        }
     }
 
     private fun initViews() {
@@ -56,8 +70,14 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
         btnNavPrompt = findViewById(R.id.btnNavPrompt)
         btnAcPrompt = findViewById(R.id.btnAcPrompt)
         btnSkyPrompt = findViewById(R.id.btnSkyPrompt)
+        etCustomQuery = findViewById(R.id.etCustomQuery)
+        btnVoice = findViewById(R.id.btnVoice)
+        btnSend = findViewById(R.id.btnSend)
+        initSpeechRecognizer()
 
-        // Instant Barge-in button (<5ms abort)
+        btnVoice.setOnClickListener {
+            startSpeechRecognition()
+        }
         btnBargeIn.setOnClickListener {
             agentManager.triggerBargeIn()
             appendLog("[用户] ⚡ 手动触发 Barge-in 硬件级打断！")
@@ -80,6 +100,68 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
             val q = "为什么天空是蓝色的啊"
             appendLog("[用户问] $q")
             agentManager.submitUserQuery(q)
+        }
+
+        // Custom text chat input
+        btnSend.setOnClickListener {
+            val text = etCustomQuery.text.toString().trim()
+            if (text.isNotEmpty()) {
+                appendLog("[用户问] $text")
+                agentManager.submitUserQuery(text)
+                etCustomQuery.setText("")
+            }
+        }
+    }
+
+    private fun initSpeechRecognizer() {
+        if (android.speech.SpeechRecognizer.isRecognitionAvailable(this)) {
+            speechRecognizer = android.speech.SpeechRecognizer.createSpeechRecognizer(this).apply {
+                setRecognitionListener(object : android.speech.RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {
+                        appendLog("[语音识别] 正在聆听，请对着麦克风说话...")
+                        btnVoice.text = "🔴 聆听中"
+                    }
+                    override fun onBeginningOfSpeech() {}
+                    override fun onRmsChanged(rmsdB: Float) {}
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+                    override fun onEndOfSpeech() {
+                        btnVoice.text = "🎙️ 说话"
+                    }
+                    override fun onError(error: Int) {
+                        btnVoice.text = "🎙️ 说话"
+                    }
+                    override fun onResults(results: Bundle?) {
+                        btnVoice.text = "🎙️ 说话"
+                        val matches = results?.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION)
+                        val text = matches?.firstOrNull()
+                        if (!text.isNullOrEmpty()) {
+                            etCustomQuery.setText(text)
+                            appendLog("[用户说] $text")
+                            agentManager.submitUserQuery(text)
+                        }
+                    }
+                    override fun onPartialResults(partialResults: Bundle?) {
+                        val matches = partialResults?.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION)
+                        matches?.firstOrNull()?.let {
+                            appendLog("[识别增量] $it")
+                        }
+                    }
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+                })
+            }
+        }
+    }
+
+    private fun startSpeechRecognition() {
+        if (speechRecognizer != null) {
+            val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
+                putExtra(android.speech.RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            }
+            speechRecognizer?.startListening(intent)
+        } else {
+            android.widget.Toast.makeText(this, "语音识别服务就绪中，也可直接打字发送", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -128,6 +210,7 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
     }
 
     private fun appendLog(msg: String) {
+        android.util.Log.i("MainActivity", msg)
         tvDialogueLog.append("$msg\n")
         scrollView.post {
             scrollView.fullScroll(ScrollView.FOCUS_DOWN)
@@ -193,6 +276,7 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
     }
 
     override fun onDestroy() {
+        speechRecognizer?.destroy()
         agentManager.removeListener(this)
         super.onDestroy()
     }
