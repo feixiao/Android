@@ -38,6 +38,13 @@ class AudioAgentNative(private val listener: AudioAgentListener? = null) {
     private var nativeHandle: Long = 0
 
     init {
+        try {
+            System.loadLibrary("onnxruntime")
+            System.loadLibrary("sherpa-onnx-c-api")
+            System.loadLibrary("sherpa-onnx-jni")
+        } catch (e: Throwable) {
+            android.util.Log.w("AudioAgentNative", "Sherpa libraries pre-load note: ${e.message}")
+        }
         System.loadLibrary("audio_agent")
     }
 

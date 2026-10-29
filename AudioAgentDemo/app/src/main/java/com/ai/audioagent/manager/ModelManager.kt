@@ -12,9 +12,12 @@ import java.net.URL
 
 data class ModelFileInfo(
     val name: String,
-    val url: String,
+    val urls: List<String>,
     val approxBytes: Long
-)
+) {
+    constructor(name: String, url: String, approxBytes: Long) : this(name, listOf(url), approxBytes)
+    val url: String get() = urls.firstOrNull() ?: ""
+}
 
 /**
  * On-Device Model Manager for Full-Duplex AI Audio Agent.
@@ -27,57 +30,93 @@ object ModelManager {
     private val MODEL_FILES = listOf(
         ModelFileInfo(
             name = "encoder-epoch-99-avg-1.int8.onnx",
-            url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/main/encoder-epoch-99-avg-1.int8.onnx",
+            urls = listOf(
+                "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/main/encoder-epoch-99-avg-1.int8.onnx",
+                "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/main/encoder-epoch-99-avg-1.int8.onnx"
+            ),
             approxBytes = 21621684L
         ),
         ModelFileInfo(
             name = "decoder-epoch-99-avg-1.onnx",
-            url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/main/decoder-epoch-99-avg-1.onnx",
+            urls = listOf(
+                "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/main/decoder-epoch-99-avg-1.onnx",
+                "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/main/decoder-epoch-99-avg-1.onnx"
+            ),
             approxBytes = 7509745L
         ),
         ModelFileInfo(
             name = "joiner-epoch-99-avg-1.int8.onnx",
-            url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/main/joiner-epoch-99-avg-1.int8.onnx",
+            urls = listOf(
+                "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/main/joiner-epoch-99-avg-1.int8.onnx",
+                "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/main/joiner-epoch-99-avg-1.int8.onnx"
+            ),
             approxBytes = 1795562L
         ),
         ModelFileInfo(
             name = "tokens.txt",
-            url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/main/tokens.txt",
+            urls = listOf(
+                "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/main/tokens.txt",
+                "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/main/tokens.txt"
+            ),
             approxBytes = 48697L
         )
     )
 
-    // High-speed CDN & HuggingFace direct download URLs for Qwen2.5-0.5B-Instruct-MNN
+    // Multi-source mirrors for Qwen2.5-0.5B-Instruct-MNN: ModelScope (China high-speed CDN) -> hf-mirror -> HuggingFace
     private val LLM_MODEL_FILES = listOf(
         ModelFileInfo(
             name = "config.json",
-            url = "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/config.json",
+            urls = listOf(
+                "https://www.modelscope.cn/models/MNN/Qwen2.5-0.5B-Instruct-MNN/resolve/master/config.json",
+                "https://hf-mirror.com/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/config.json",
+                "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/config.json"
+            ),
             approxBytes = 159L
         ),
         ModelFileInfo(
             name = "llm_config.json",
-            url = "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/llm_config.json",
+            urls = listOf(
+                "https://www.modelscope.cn/models/MNN/Qwen2.5-0.5B-Instruct-MNN/resolve/master/llm_config.json",
+                "https://hf-mirror.com/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/llm_config.json",
+                "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/llm_config.json"
+            ),
             approxBytes = 272L
         ),
         ModelFileInfo(
             name = "tokenizer.txt",
-            url = "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/tokenizer.txt",
-            approxBytes = 1532454L
+            urls = listOf(
+                "https://www.modelscope.cn/models/MNN/Qwen2.5-0.5B-Instruct-MNN/resolve/master/tokenizer.txt",
+                "https://hf-mirror.com/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/tokenizer.txt",
+                "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/tokenizer.txt"
+            ),
+            approxBytes = 3193477L
         ),
         ModelFileInfo(
             name = "embeddings_bf16.bin",
-            url = "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/embeddings_bf16.bin",
-            approxBytes = 135897088L
+            urls = listOf(
+                "https://www.modelscope.cn/models/MNN/Qwen2.5-0.5B-Instruct-MNN/resolve/master/embeddings_bf16.bin",
+                "https://hf-mirror.com/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/embeddings_bf16.bin",
+                "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/embeddings_bf16.bin"
+            ),
+            approxBytes = 272269312L
         ),
         ModelFileInfo(
             name = "llm.mnn",
-            url = "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/llm.mnn",
-            approxBytes = 2351234L
+            urls = listOf(
+                "https://www.modelscope.cn/models/MNN/Qwen2.5-0.5B-Instruct-MNN/resolve/master/llm.mnn",
+                "https://hf-mirror.com/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/llm.mnn",
+                "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/llm.mnn"
+            ),
+            approxBytes = 566264L
         ),
         ModelFileInfo(
             name = "llm.mnn.weight",
-            url = "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/llm.mnn.weight",
-            approxBytes = 256897123L
+            urls = listOf(
+                "https://www.modelscope.cn/models/MNN/Qwen2.5-0.5B-Instruct-MNN/resolve/master/llm.mnn.weight",
+                "https://hf-mirror.com/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/llm.mnn.weight",
+                "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/llm.mnn.weight"
+            ),
+            approxBytes = 277967498L
         )
     )
     private val TOTAL_LLM_BYTES = LLM_MODEL_FILES.sumOf { it.approxBytes }
@@ -173,12 +212,12 @@ object ModelManager {
                     onProgress(pct, "正在下载大模型 (${index + 1}/${LLM_MODEL_FILES.size}): ${fileInfo.name}")
                 }
 
-                downloadSingleFile(fileInfo.url, tempFile) { bytesChunk ->
-                    totalBytesDownloadedSoFar += bytesChunk
-                    val pct = ((totalBytesDownloadedSoFar.toDouble() / TOTAL_LLM_BYTES) * 100).toInt().coerceIn(0, 100)
+                downloadFileWithFallback(fileInfo, tempFile) { fileBytesRead ->
+                    val currentTotal = totalBytesDownloadedSoFar + fileBytesRead
+                    val pct = ((currentTotal.toDouble() / TOTAL_LLM_BYTES) * 100).toInt().coerceIn(0, 100)
                     onProgress(pct, "下载大模型中 (${pct}%): ${fileInfo.name}")
                 }
-
+                totalBytesDownloadedSoFar += tempFile.length()
                 if (tempFile.exists()) {
                     if (destFile.exists()) destFile.delete()
                     tempFile.renameTo(destFile)
@@ -232,13 +271,13 @@ object ModelManager {
                     onProgress(pct, "正在下载 (${index + 1}/${MODEL_FILES.size}): ${fileInfo.name}")
                 }
 
-                // Download with redirect follow support
-                downloadSingleFile(fileInfo.url, tempFile) { bytesChunk ->
-                    totalBytesDownloadedSoFar += bytesChunk
-                    val pct = ((totalBytesDownloadedSoFar.toDouble() / TOTAL_APPROX_BYTES) * 100).toInt().coerceIn(0, 100)
+                // Download with fallback across candidate mirrors
+                downloadFileWithFallback(fileInfo, tempFile) { fileBytesRead ->
+                    val currentTotal = totalBytesDownloadedSoFar + fileBytesRead
+                    val pct = ((currentTotal.toDouble() / TOTAL_APPROX_BYTES) * 100).toInt().coerceIn(0, 100)
                     onProgress(pct, "下载中 (${pct}%): ${fileInfo.name}")
                 }
-
+                totalBytesDownloadedSoFar += tempFile.length()
                 // Rename temp to dest
                 if (tempFile.exists()) {
                     if (destFile.exists()) destFile.delete()
@@ -262,6 +301,45 @@ object ModelManager {
         }
     }
 
+    private fun downloadFileWithFallback(
+        fileInfo: ModelFileInfo,
+        dest: File,
+        onProgressUpdate: (bytesDownloadedInThisFile: Long) -> Unit
+    ) {
+        var lastException: Exception? = null
+        for (url in fileInfo.urls) {
+            var attempts = 0
+            val maxAttempts = 2
+            while (attempts < maxAttempts) {
+                attempts++
+                try {
+                    Log.i(TAG, "Trying download for ${fileInfo.name} from $url (attempt $attempts/$maxAttempts)")
+                    var fileBytesRead = 0L
+                    downloadSingleFile(url, dest) { chunk ->
+                        fileBytesRead += chunk
+                        onProgressUpdate(fileBytesRead)
+                    }
+                    if (dest.exists() && dest.length() > 0) {
+                        return
+                    }
+                } catch (e: Exception) {
+                    lastException = e
+                    Log.w(TAG, "Download failed for ${fileInfo.name} from $url: ${e.message}")
+                    if (dest.exists()) {
+                        dest.delete()
+                    }
+                    onProgressUpdate(0L)
+                    if (attempts < maxAttempts) {
+                        try {
+                            Thread.sleep(800L)
+                        } catch (_: InterruptedException) {}
+                    }
+                }
+            }
+        }
+        throw lastException ?: IllegalStateException("All mirror sources failed for ${fileInfo.name}")
+    }
+
     private fun downloadSingleFile(
         fileUrl: String,
         dest: File,
@@ -276,9 +354,10 @@ object ModelManager {
             val u = URL(currentUrl)
             conn = (u.openConnection() as HttpURLConnection).apply {
                 connectTimeout = 15000
-                readTimeout = 30000
+                readTimeout = 60000
                 instanceFollowRedirects = false
                 setRequestProperty("User-Agent", "AudioAgentDemo/1.0 (Android)")
+                setRequestProperty("Accept-Encoding", "identity")
             }
 
             val code = conn.responseCode
@@ -304,7 +383,7 @@ object ModelManager {
         try {
             input = connection.inputStream
             output = FileOutputStream(dest)
-            val buffer = ByteArray(32 * 1024)
+            val buffer = ByteArray(64 * 1024)
             var bytesRead: Int
             while (input.read(buffer).also { bytesRead = it } != -1) {
                 output.write(buffer, 0, bytesRead)

@@ -171,6 +171,10 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
                 etCustomQuery.setText("")
                 return@setOnClickListener
             }
+            if (ModelManager.isModelReady(this)) {
+                appendLog("[全双工免触] 离线 ASR 模型已挂载运行，全双工麦克风处于实时监听状态，请直接对着手机说话，无需按键！")
+                return@setOnClickListener
+            }
             if (isListeningSpeech) {
                 stopSpeechRecognition()
             } else {
@@ -519,7 +523,11 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
             appendLog("[状态机迁移] ${oldState.name} ➔ ${newState.name}")
 
             if (oldState == AgentState.LISTENING && newState == AgentState.IDLE) {
-                appendLog("[麦克风感知] 监听到语音落音截断。请点击右下方「🎙️ 说话」按钮开始精准语音对聊，或直接打字发送！")
+                if (ModelManager.isModelReady(this@MainActivity)) {
+                    appendLog("[麦克风感知] 监听落音截断，全双工持续免触收听中。")
+                } else {
+                    appendLog("[麦克风感知] 听到语音输入并落音截断。由于未安装 31MB 离线 ASR 模型，请点击上方按钮下载开启免触对聊，或直接打字发送！")
+                }
             }
             val dummyPcm = FloatArray(128) { (Math.random().toFloat() - 0.5f) * 0.8f }
             audioWaveformView.updateAmplitudes(dummyPcm)

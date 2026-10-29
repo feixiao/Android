@@ -3,6 +3,7 @@
 #include "CpuAffinity.hpp"
 #include "MnnLlmEngine.hpp"
 #include "MockCloudLlmEngine.hpp"
+#include "SherpaOnnxPerceptionEngine.hpp"
 #include <ctime>
 #include <regex>
 #if defined(__ANDROID__)
@@ -221,7 +222,7 @@ Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeCreate(
     std::string sys_prompt = sys_prompt_cstr ? sys_prompt_cstr : "";
     env->ReleaseStringUTFChars(system_prompt, sys_prompt_cstr);
 
-    auto perception = std::make_shared<DemoPerceptionEngine>();
+    auto perception = std::make_shared<SherpaOnnxPerceptionEngine>();
     ctx->mnn_llm = std::make_shared<MnnLlmEngine>();
     ctx->cloud_llm = std::make_shared<MockCloudLlmEngine>();
     auto tts = std::make_shared<DemoTtsEngine>();

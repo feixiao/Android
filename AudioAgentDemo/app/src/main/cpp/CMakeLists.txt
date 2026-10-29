@@ -32,6 +32,7 @@ set(AUDIO_AGENT_SOURCES
     src/FullDuplexAudioIO.cpp
     src/AudioAgentPipeline.cpp
     src/MnnLlmEngine.cpp
+    src/SherpaOnnxPerceptionEngine.cpp
     src/NativeJniBridge.cpp
 )
 

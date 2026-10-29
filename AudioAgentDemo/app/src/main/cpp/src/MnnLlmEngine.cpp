@@ -134,7 +134,7 @@ bool MnnLlmEngine::WarmupPrefix(const std::string& system_prompt) {
     // 估算前缀 Token 数（中文场景下 UTF-8 字符约 1.5 Token）
     size_t est_tokens = 0;
     for (size_t i = 0; i < system_prompt.size(); ) {
-        unsigned char c = static_cast<unsigned char>(system_prompt[i]);
+        auto c = static_cast<unsigned char>(system_prompt[i]);
         if (c < 0x80) { i += 1; est_tokens += 1; }
         else if ((c & 0xE0) == 0xC0) { i += 2; est_tokens += 1; }
         else if ((c & 0xF0) == 0xE0) { i += 3; est_tokens += 2; }

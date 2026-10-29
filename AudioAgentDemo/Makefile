@@ -1,11 +1,11 @@
-.PHONY: all help build build-release install reinstall run stop restart logcat clean test uninstall devices info
+.PHONY: all help build build-release install reinstall run stop restart logcat clean test uninstall devices info models models-llm models-push
 
 APK_DEBUG = app/build/outputs/apk/debug/app-debug.apk
 APK_RELEASE = app/build/outputs/apk/release/app-release.apk
 PACKAGE_NAME = com.ai.audioagent
 MAIN_ACTIVITY = com.ai.audioagent/.MainActivity
-GRADLEW = ./gradlew
-
+JAVA_HOME ?= $(shell if [ -d "/Applications/Android Studio.app/Contents/jbr/Contents/Home" ]; then echo "/Applications/Android Studio.app/Contents/jbr/Contents/Home"; fi)
+GRADLEW = JAVA_HOME="$(JAVA_HOME)" ./gradlew
 # Default target
 all: help
 
@@ -26,6 +26,9 @@ help:
 	@echo "  make clean         - 清理 Gradle 构建产物与临时文件"
 	@echo "  make devices       - 查看当前连接的 adb 设备列表"
 	@echo "  make info          - 查看已连接设备的 CPU 架构与主频拓扑"
+	@echo "  make models        - 自动下载 LLM + ASR 模型并推送至 Android 手机"
+	@echo "  make models-llm    - 仅下载并推送 Qwen2.5-0.5B MNN 大模型 (~400MB)"
+	@echo "  make models-push   - 跳过下载，直接将本地 models/ 推送到手机"
 	@echo "================================================================="
 
 build:
@@ -75,6 +78,7 @@ test:
 		src/FullDuplexAudioIO.cpp \
 		src/AudioAgentPipeline.cpp \
 		src/MnnLlmEngine.cpp \
+		src/SherpaOnnxPerceptionEngine.cpp \
 		src/test_main.cpp \
 		-o audio_agent_test
 	@echo "==> 执行自动化冒烟测试套件..."
@@ -97,3 +101,12 @@ info:
 	@adb shell getprop ro.product.cpu.abi
 	@echo "==> 在线 CPU 核心:"
 	@adb shell cat /sys/devices/system/cpu/online 2>/dev/null || true
+
+models:
+	@bash scripts/download_and_push_models.sh
+
+models-llm:
+	@bash scripts/download_and_push_models.sh --llm-only
+
+models-push:
+	@bash scripts/download_and_push_models.sh --push-only
