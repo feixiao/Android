@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">AI Audio Agent</string>
+    <string name="title_full_duplex">端侧全双工 AI 语音 Agent</string>
+    <string name="subtitle_arch">Oboe + Sherpa-onnx + MNN-LLM 零拷贝架构</string>
+    <string name="btn_barge_in">⚡ 毫秒级打断 (Barge-in)</string>
+    <string name="btn_start_service">启动全双工服务</string>
+    <string name="btn_stop_service">停止常驻服务</string>
+    <string name="state_idle">IDLE (待命)</string>
+    <string name="state_listening">LISTENING (倾听中)</string>
+    <string name="state_thinking">THINKING (思考解码)</string>
+    <string name="state_speaking">SPEAKING (语音播报)</string>
+</resources>

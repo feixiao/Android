@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_dark"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Header & Architecture Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/title_full_duplex"
+                android:textColor="@color/text_primary"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/subtitle_arch"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- CPU Core & Thermal Tag -->
+        <TextView
+            android:id="@+id/tvCpuInfo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@color/chip_background"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="5dp"
+            android:text="CPU: 4 大核绑定 | 正常"
+            android:textColor="@color/primary_accent"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- State Visualizer & Status Badge -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <com.ai.audioagent.ui.StateVisualizerView
+            android:id="@+id/stateVisualizerView"
+            android:layout_width="140dp"
+            android:layout_height="140dp" />
+
+        <TextView
+            android:id="@+id/tvCurrentState"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@color/chip_background"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="6dp"
+            android:text="当前状态: IDLE (待命)"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Audio Waveform Visualizer -->
+    <com.ai.audioagent.ui.AudioWaveformView
+        android:id="@+id/audioWaveformView"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="12dp" />
+
+    <!-- Latency Budget & Memory Telemetry Card -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@color/surface_card"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="全双工端到端指标 (Voice-to-Voice Latency Budget)"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvMetrics"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="VAD尾点: 280ms | ASR增量: 45ms | TTFT首字: 68ms | 首包TTS: 120ms\n端到端实测: ~580ms (真人无感交互水准) | L1记忆: 4轮对齐"
+            android:textColor="@color/primary_accent"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- Dialogue Stream Box -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="12dp"
+        android:layout_weight="1"
+        android:background="@color/surface_card"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="实时全双工交互日志 (ASR / LLM / TTS / Barge-in)"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <ScrollView
+            android:id="@+id/scrollView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="6dp"
+            android:layout_weight="1">
+
+            <TextView
+                android:id="@+id/tvDialogueLog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="[系统] 全双工引擎就绪，麦克风保持开启，支持随时打断播报。\n"
+                android:textColor="@color/text_primary"
+                android:textSize="13sp" />
+        </ScrollView>
+
+        <!-- Tool Call Execution Banner -->
+        <TextView
+            android:id="@+id/tvToolCallBanner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="@color/chip_background"
+            android:padding="8dp"
+            android:text="暂无异步工具调用"
+            android:textColor="@color/accent_warning"
+            android:textSize="12sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- Quick Test Simulation Prompts -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnNavPrompt"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:background="@color/chip_background"
+                android:paddingHorizontal="12dp"
+                android:text="🗺️ 导航去西湖"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnAcPrompt"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:background="@color/chip_background"
+                android:paddingHorizontal="12dp"
+                android:text="❄️ 空调设为24度"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnSkyPrompt"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:background="@color/chip_background"
+                android:paddingHorizontal="12dp"
+                android:text="🌌 为什么天是蓝的"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Barge-in Trigger Button -->
+    <Button
+        android:id="@+id/btnBargeIn"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="10dp"
+        android:backgroundTint="@color/accent_barge_in"
+        android:text="@string/btn_barge_in"
+        android:textColor="@color/white"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+</LinearLayout>
