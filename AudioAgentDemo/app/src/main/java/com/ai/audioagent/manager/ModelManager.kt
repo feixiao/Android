@@ -47,6 +47,41 @@ object ModelManager {
         )
     )
 
+    // High-speed CDN & HuggingFace direct download URLs for Qwen2.5-0.5B-Instruct-MNN
+    private val LLM_MODEL_FILES = listOf(
+        ModelFileInfo(
+            name = "config.json",
+            url = "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/config.json",
+            approxBytes = 1450L
+        ),
+        ModelFileInfo(
+            name = "llm_config.json",
+            url = "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/llm_config.json",
+            approxBytes = 720L
+        ),
+        ModelFileInfo(
+            name = "tokenizer.txt",
+            url = "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/tokenizer.txt",
+            approxBytes = 1532454L
+        ),
+        ModelFileInfo(
+            name = "embeddings_bf16.bin",
+            url = "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/embeddings_bf16.bin",
+            approxBytes = 135897088L
+        ),
+        ModelFileInfo(
+            name = "llm.mnn",
+            url = "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/llm.mnn",
+            approxBytes = 2351234L
+        ),
+        ModelFileInfo(
+            name = "llm.mnn.weight",
+            url = "https://huggingface.co/taobao-mnn/Qwen2.5-0.5B-Instruct-MNN/resolve/main/llm.mnn.weight",
+            approxBytes = 256897123L
+        )
+    )
+    private val TOTAL_LLM_BYTES = LLM_MODEL_FILES.sumOf { it.approxBytes }
+
     private val TOTAL_APPROX_BYTES = MODEL_FILES.sumOf { it.approxBytes }
 
     fun getModelDir(context: Context): File {
@@ -81,6 +116,89 @@ object ModelManager {
             }
         }
         return success
+    }
+
+    fun getLlmModelDir(context: Context): File {
+        val base = context.getExternalFilesDir("models/llm") ?: File(context.filesDir, "models/llm")
+        if (!base.exists()) {
+            base.mkdirs()
+        }
+        return base
+    }
+
+    fun isLlmModelReady(context: Context): Boolean {
+        val dir = getLlmModelDir(context)
+        return LLM_MODEL_FILES.all { fileInfo ->
+            val f = File(dir, fileInfo.name)
+            f.exists() && f.length() > 500L
+        }
+    }
+
+    fun deleteLlmModel(context: Context): Boolean {
+        val dir = getLlmModelDir(context)
+        var success = true
+        for (f in LLM_MODEL_FILES) {
+            val target = File(dir, f.name)
+            if (target.exists()) {
+                success = success && target.delete()
+            }
+        }
+        return success
+    }
+
+    suspend fun downloadLlmModels(
+        context: Context,
+        onProgress: (percent: Int, status: String) -> Unit,
+        onComplete: (success: Boolean, message: String) -> Unit
+    ) = withContext(Dispatchers.IO) {
+        val targetDir = getLlmModelDir(context)
+        var totalBytesDownloadedSoFar = 0L
+
+        try {
+            for ((index, fileInfo) in LLM_MODEL_FILES.withIndex()) {
+                val destFile = File(targetDir, fileInfo.name)
+                val tempFile = File(targetDir, "${fileInfo.name}.tmp")
+
+                if (destFile.exists() && destFile.length() >= fileInfo.approxBytes * 0.9) {
+                    totalBytesDownloadedSoFar += destFile.length()
+                    val pct = ((totalBytesDownloadedSoFar.toDouble() / TOTAL_LLM_BYTES) * 100).toInt().coerceIn(0, 100)
+                    withContext(Dispatchers.Main) {
+                        onProgress(pct, "已存在 (${index + 1}/${LLM_MODEL_FILES.size}): ${fileInfo.name}")
+                    }
+                    continue
+                }
+
+                withContext(Dispatchers.Main) {
+                    val pct = ((totalBytesDownloadedSoFar.toDouble() / TOTAL_LLM_BYTES) * 100).toInt().coerceIn(0, 100)
+                    onProgress(pct, "正在下载大模型 (${index + 1}/${LLM_MODEL_FILES.size}): ${fileInfo.name}")
+                }
+
+                downloadSingleFile(fileInfo.url, tempFile) { bytesChunk ->
+                    totalBytesDownloadedSoFar += bytesChunk
+                    val pct = ((totalBytesDownloadedSoFar.toDouble() / TOTAL_LLM_BYTES) * 100).toInt().coerceIn(0, 100)
+                    onProgress(pct, "下载大模型中 (${pct}%): ${fileInfo.name}")
+                }
+
+                if (tempFile.exists()) {
+                    if (destFile.exists()) destFile.delete()
+                    tempFile.renameTo(destFile)
+                }
+            }
+
+            val ready = isLlmModelReady(context)
+            withContext(Dispatchers.Main) {
+                if (ready) {
+                    onComplete(true, "MNN-LLM 真实大模型就绪 (${targetDir.absolutePath})")
+                } else {
+                    onComplete(false, "MNN-LLM 权重文件校验失败，请重试")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to download LLM model files", e)
+            withContext(Dispatchers.Main) {
+                onComplete(false, "大模型下载失败: ${e.localizedMessage}")
+            }
+        }
     }
 
     /**

@@ -208,6 +208,44 @@
             android:text="端侧特性: Prefix KV 预热 (72 Tok) | 增量Prefill: 20ms | TTFT: ~65ms | 解码: 38 tok/s | KV 回滚就绪"
             android:textColor="@color/primary_accent"
             android:textSize="10sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnDownloadLlm"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:backgroundTint="@color/primary_accent"
+                android:paddingHorizontal="10dp"
+                android:text="📥 下载真实大模型 (Qwen-0.5B 350MB)"
+                android:textColor="@color/black"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvLlmWeightStatus"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="状态: ❌ 未就绪 (轻量仿真模式)"
+                android:textColor="@color/text_secondary"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/pbLlmDownload"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_marginTop="4dp"
+            android:max="100"
+            android:visibility="gone" />
     </LinearLayout>
 
     <!-- Dialogue Stream Box -->

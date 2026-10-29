@@ -78,6 +78,13 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
             Log.i(TAG, "Configured on-device ASR models: ${modelDir.absolutePath}")
         }
 
+        // Auto-configure on-device MNN-LLM model if downloaded
+        if (ModelManager.isLlmModelReady(appContext)) {
+            val llmDir = ModelManager.getLlmModelDir(appContext)
+            nativeEngine.setLlmModelPath(llmDir.absolutePath)
+            Log.i(TAG, "Configured on-device MNN-LLM models: ${llmDir.absolutePath}")
+        }
+
         val started = nativeEngine.start()
         if (started) {
             isRunning = true
@@ -105,6 +112,10 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
 
     fun setModelPath(path: String) {
         nativeEngine.setModelPath(path)
+    }
+
+    fun setLlmModelPath(path: String) {
+        nativeEngine.setLlmModelPath(path)
     }
 
     fun setLlmEngineMode(mode: Int) {

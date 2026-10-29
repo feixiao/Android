@@ -23,7 +23,7 @@ namespace audio_agent {
 class MnnLlmEngine : public ILlmEngine {
 public:
     MnnLlmEngine();
-    ~MnnLlmEngine() override = default;
+    ~MnnLlmEngine() override;
 
     // Load on-device model weights from directory (e.g. Qwen2.5-0.5B/1.5B MNN)
     bool LoadModel(const std::string& model_dir);
@@ -43,10 +43,19 @@ public:
     // Thermal throttling adjustment (Section 6.3)
     void SetThermalThrottle(int thermal_status);
 
+
+    // Check if real MNN neural network model is loaded
+    bool IsRealModelLoaded() const { return mnn_loaded_; }
 private:
     std::string GenerateAnswer(const std::string& query);
     void StreamTokens(const std::string& answer, std::ostream* out_stream, bool is_prefix_hit, int64_t prefill_ms, std::chrono::steady_clock::time_point start_time);
 
+    bool InitMnnSymbols();
+    void UnloadMnnModel();
+
+    void* mnn_lib_handle_{nullptr};
+    void* mnn_instance_{nullptr};
+    bool mnn_loaded_{false};
     mutable std::mutex stats_mtx_;
     LlmStats latest_stats_;
 

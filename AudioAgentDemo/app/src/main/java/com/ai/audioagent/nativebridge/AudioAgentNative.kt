@@ -112,6 +112,15 @@ class AudioAgentNative(private val listener: AudioAgentListener? = null) {
     }
 
     /**
+     * Configures on-device MNN-LLM model weights directory (e.g. Qwen2.5-0.5B-Instruct-MNN)
+     */
+    fun setLlmModelPath(modelPath: String) {
+        if (nativeHandle != 0L) {
+            nativeSetLlmModelPath(nativeHandle, modelPath)
+        }
+    }
+
+    /**
      * Switch active LLM engine: 0 = MNN-LLM On-Device (B-Side), 1 = Cloud API Mock (A-Side)
      */
     fun setLlmEngineMode(mode: Int) {
@@ -194,6 +203,7 @@ class AudioAgentNative(private val listener: AudioAgentListener? = null) {
     private external fun nativeGetState(handle: Long): Int
     private external fun nativeOnThermalChanged(handle: Long, thermalStatus: Int)
     private external fun nativeSetModelPath(handle: Long, modelPath: String)
+    private external fun nativeSetLlmModelPath(handle: Long, modelPath: String)
     private external fun nativeSetLlmEngineMode(handle: Long, mode: Int)
     private external fun nativeGetLlmStats(handle: Long): String
     private external fun nativeDestroy(handle: Long)

@@ -685,6 +685,27 @@ Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeSetModelPath(
 }
 
 JNIEXPORT void JNICALL
+Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeSetLlmModelPath(
+    JNIEnv* env,
+    jobject /*thiz*/,
+    jlong handle,
+    jstring model_path
+) {
+    auto* ctx = reinterpret_cast<JniBridgeContext*>(handle);
+    if (!ctx || !ctx->mnn_llm) return;
+
+    std::string path_cpp;
+    if (model_path) {
+        const char* p_str = env->GetStringUTFChars(model_path, nullptr);
+        if (p_str) {
+            path_cpp = p_str;
+            env->ReleaseStringUTFChars(model_path, p_str);
+        }
+    }
+    ctx->mnn_llm->LoadModel(path_cpp);
+}
+
+JNIEXPORT void JNICALL
 Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeSetLlmEngineMode(
     JNIEnv* /*env*/,
     jobject /*thiz*/,

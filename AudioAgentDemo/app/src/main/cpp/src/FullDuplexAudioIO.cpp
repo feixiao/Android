@@ -29,7 +29,7 @@ bool FullDuplexAudioIO::StartStreams() {
     oboe::AudioStreamBuilder inBuilder;
     inBuilder.setDirection(oboe::Direction::Input)
              ->setPerformanceMode(oboe::PerformanceMode::LowLatency)
-             ->setSharingMode(oboe::SharingMode::Exclusive)
+             ->setSharingMode(oboe::SharingMode::Shared)
              ->setFormat(oboe::AudioFormat::Float)
              ->setChannelCount(oboe::ChannelCount::Mono)
              ->setSampleRate(mic_sample_rate_)

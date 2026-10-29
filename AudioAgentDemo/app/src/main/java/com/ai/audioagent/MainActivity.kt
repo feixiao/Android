@@ -51,6 +51,10 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
     private lateinit var btnSwitchLlmMode: Button
     private lateinit var tvLlmTelemetry: TextView
     private var currentLlmMode = 0 // 0 = Local MNN-LLM, 1 = Cloud API Mock
+    private lateinit var btnDownloadLlm: Button
+    private lateinit var tvLlmWeightStatus: TextView
+    private lateinit var pbLlmDownload: ProgressBar
+    private var isDownloadingLlm = false
     private var isDownloadingModel = false
     private var speechRecognizer: android.speech.SpeechRecognizer? = null
 
@@ -103,6 +107,25 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
         pbModelDownload = findViewById(R.id.pbModelDownload)
         btnSwitchLlmMode = findViewById(R.id.btnSwitchLlmMode)
         tvLlmTelemetry = findViewById(R.id.tvLlmTelemetry)
+        btnDownloadLlm = findViewById(R.id.btnDownloadLlm)
+        tvLlmWeightStatus = findViewById(R.id.tvLlmWeightStatus)
+        pbLlmDownload = findViewById(R.id.pbLlmDownload)
+        updateLlmStatusUI()
+
+        btnDownloadLlm.setOnClickListener {
+            if (isDownloadingLlm) return@setOnClickListener
+
+            if (ModelManager.isLlmModelReady(this)) {
+                val deleted = ModelManager.deleteLlmModel(this)
+                if (deleted) {
+                    appendLog("[模型管理] 🗑️ 已删除本地 Qwen-0.5B MNN 真实大模型权重")
+                    agentManager.setLlmModelPath("")
+                }
+                updateLlmStatusUI()
+            } else {
+                startLlmModelDownload()
+            }
+        }
 
         btnSwitchLlmMode.setOnClickListener {
             currentLlmMode = if (currentLlmMode == 0) 1 else 0
@@ -251,6 +274,71 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
                             ).show()
                         } else {
                             btnModelAction.text = "📥 重试下载 (31MB)"
+                            appendLog("[模型管理] ❌ $message")
+                            android.widget.Toast.makeText(
+                                this@MainActivity,
+                                message,
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
+            )
+        }
+    }
+
+    private fun updateLlmStatusUI() {
+        val ready = ModelManager.isLlmModelReady(this)
+        if (ready) {
+            val dir = ModelManager.getLlmModelDir(this)
+            tvLlmWeightStatus.text = "状态: ✅ 真实Qwen-0.5B已就绪"
+            btnDownloadLlm.text = "🗑️ 删除大模型"
+            btnDownloadLlm.isEnabled = true
+            pbLlmDownload.visibility = View.GONE
+            if (::agentManager.isInitialized) {
+                agentManager.setLlmModelPath(dir.absolutePath)
+            }
+        } else {
+            tvLlmWeightStatus.text = "状态: ❌ 未就绪 (轻量仿真模式)"
+            btnDownloadLlm.text = "📥 下载真实大模型 (350MB)"
+            btnDownloadLlm.isEnabled = true
+            pbLlmDownload.visibility = View.GONE
+            if (::agentManager.isInitialized) {
+                agentManager.setLlmModelPath("")
+            }
+        }
+    }
+
+    private fun startLlmModelDownload() {
+        isDownloadingLlm = true
+        btnDownloadLlm.isEnabled = false
+        btnDownloadLlm.text = "⏳ 下载大模型中..."
+        pbLlmDownload.visibility = View.VISIBLE
+        pbLlmDownload.progress = 0
+        appendLog("[模型管理] 🚀 开始下载真实端侧 Qwen2.5-0.5B MNN 模型权重 (约 350MB)...")
+
+        lifecycleScope.launch {
+            ModelManager.downloadLlmModels(
+                context = this@MainActivity,
+                onProgress = { pct, statusText ->
+                    runOnUiThread {
+                        pbLlmDownload.progress = pct
+                        tvLlmWeightStatus.text = "状态: $statusText"
+                    }
+                },
+                onComplete = { success, message ->
+                    runOnUiThread {
+                        isDownloadingLlm = false
+                        updateLlmStatusUI()
+                        if (success) {
+                            appendLog("[模型管理] ✅ $message")
+                            android.widget.Toast.makeText(
+                                this@MainActivity,
+                                "真实端侧 Qwen-0.5B 大模型已就绪并加载！",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            btnDownloadLlm.text = "📥 重试下载 (350MB)"
                             appendLog("[模型管理] ❌ $message")
                             android.widget.Toast.makeText(
                                 this@MainActivity,
