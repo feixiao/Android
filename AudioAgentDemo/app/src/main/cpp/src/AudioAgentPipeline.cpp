@@ -4,12 +4,22 @@
 
 namespace audio_agent {
 
+/**
+ * @brief 获取当前系统毫秒级时间戳
+ */
 static int64_t GetCurrentTimeMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()
     ).count();
 }
 
+/**
+ * @brief 构造函数：初始化三大引擎（感知、认知、表达）与全双工底层音频 IO
+ * 
+ * 环形缓冲区分配策略：
+ * - 麦克风环形缓冲区（mic_ring_buffer_）：分配 10 秒容量（16kHz * 10 = 160000 Float），保障极端锁屏或高负载下录音不丢帧；
+ * - 扬声器环形缓冲区（spk_ring_buffer_）：分配 10 秒容量（24kHz * 10 = 240000 Float），支撑大段流式 TTS 合成缓冲。
+ */
 AudioAgentPipeline::AudioAgentPipeline(
     std::shared_ptr<ISpeechPerceptionEngine> perception_engine,
     std::shared_ptr<ILlmEngine> llm_engine,
@@ -19,10 +29,11 @@ AudioAgentPipeline::AudioAgentPipeline(
     llm_engine_(std::move(llm_engine)),
     tts_engine_(std::move(tts_engine)),
     observer_(std::move(observer)) {
-    // 10 seconds capacity for ring buffers
+    // 为录音与放音分配 10 秒深度的无锁环形缓冲区
     mic_ring_buffer_ = std::make_shared<LockFreeSPSCRingBuffer<float>>(DEFAULT_MIC_SAMPLE_RATE * 10);
     spk_ring_buffer_ = std::make_shared<LockFreeSPSCRingBuffer<float>>(DEFAULT_SPK_SAMPLE_RATE * 10);
 
+    // 实例化底层 Oboe 全双工音频控制器
     audio_io_ = std::make_unique<FullDuplexAudioIO>(
         mic_ring_buffer_,
         spk_ring_buffer_,
@@ -35,6 +46,18 @@ AudioAgentPipeline::~AudioAgentPipeline() {
     Stop();
 }
 
+/**
+ * @brief 启动全双工 AI Agent 流水线
+ * 
+ * 启动时序：
+ * 1. 预热大模型前缀缓存（Warmup Prefix KV Cache）；
+ * 2. 启动 Oboe 硬件音频流；
+ * 3. 并行拉起 4 个专属后台工作线程：
+ *    - PerceptionWorkerLoop（感知线程，能效小核）
+ *    - CognitionWorkerLoop（认知线程，性能大核）
+ *    - ExpressionWorkerLoop（表达线程，性能大核）
+ *    - IdleMonitorWorkerLoop（闲置监控线程，能效小核）
+ */
 bool AudioAgentPipeline::Start() {
     if (is_running_.load(std::memory_order_acquire)) {
         return true;
@@ -44,17 +67,17 @@ bool AudioAgentPipeline::Start() {
     abort_flag_.store(false, std::memory_order_release);
     state_.store(AgentState::IDLE, std::memory_order_release);
 
-    // Warmup prefix KV cache for LLM
+    // 1. 预热系统提示词前缀 KV Cache
     if (llm_engine_) {
         llm_engine_->WarmupPrefix(memory_.GetSystemPrompt());
     }
 
-    // Start Audio IO Streams
+    // 2. 启动底层 Oboe 录音与放音流
     if (audio_io_) {
         audio_io_->StartStreams();
     }
 
-    // Launch Background Worker Threads
+    // 3. 启动后台流水线工作线程池
     perception_thread_ = std::thread(&AudioAgentPipeline::PerceptionWorkerLoop, this);
     cognition_thread_ = std::thread(&AudioAgentPipeline::CognitionWorkerLoop, this);
     expression_thread_ = std::thread(&AudioAgentPipeline::ExpressionWorkerLoop, this);
@@ -63,6 +86,9 @@ bool AudioAgentPipeline::Start() {
     return true;
 }
 
+/**
+ * @brief 停止流水线并优雅回收所有线程与资源
+ */
 void AudioAgentPipeline::Stop() {
     if (!is_running_.load(std::memory_order_acquire)) return;
 
@@ -71,7 +97,7 @@ void AudioAgentPipeline::Stop() {
 
     watchdog_.Stop();
 
-    // Wake all waiting threads
+    // 唤醒所有等待中的条件变量，防止线程挂起死锁
     query_cv_.notify_all();
     tts_cv_.notify_all();
 
@@ -85,12 +111,18 @@ void AudioAgentPipeline::Stop() {
     if (idle_monitor_thread_.joinable()) idle_monitor_thread_.join();
 }
 
+/**
+ * @brief 临时挂起底层音频硬件流（例如兼容系统外部录音与语音识别应用）
+ */
 void AudioAgentPipeline::PauseAudioIO() {
     if (audio_io_) {
         audio_io_->StopStreams();
     }
 }
 
+/**
+ * @brief 恢复底层音频硬件流
+ */
 bool AudioAgentPipeline::ResumeAudioIO() {
     if (!is_running_.load(std::memory_order_acquire)) return false;
     if (audio_io_) {
@@ -99,6 +131,9 @@ bool AudioAgentPipeline::ResumeAudioIO() {
     return false;
 }
 
+/**
+ * @brief 原子切换状态机状态并通知上层观察者（UI 动效波形与状态球）
+ */
 void AudioAgentPipeline::SetState(AgentState new_state) {
     AgentState old_state = state_.exchange(new_state, std::memory_order_acq_rel);
     if (old_state != new_state && observer_.on_state_changed) {
@@ -106,25 +141,35 @@ void AudioAgentPipeline::SetState(AgentState new_state) {
     }
 }
 
+/**
+ * @brief 全双工核心打断控制逻辑（Barge-in Handler）
+ * 
+ * 5 步闪电响应机制（<5ms 极速闭环）：
+ * 1. 升起原子打断标志（abort_flag_ = true）：通知正在运行的 LLM 流式输出与 TTS 合成循环立即退出；
+ * 2. 瞬间清空待播报 TTS 文本队列；
+ * 3. 瞬间清空扬声器环形缓冲区（spk_ring_buffer_->clear()）：硬件声卡立刻由于读不到数据而执行 zero-fill，喇叭瞬间静音；
+ * 4. KV 缓存与对话记忆回滚：截断未播报内容，模型仅记住已发音的文字，防止产生幻觉；
+ * 5. 状态机立即置为 LISTENING，开始聚焦收听用户的插话内容。
+ */
 void AudioAgentPipeline::TriggerBargeIn() {
     AgentState cur = state_.load(std::memory_order_acquire);
     if (cur == AgentState::THINKING || cur == AgentState::SPEAKING) {
-        // Step 1: Raise atomic interrupt flag (notifies LLM streambuf and TTS callback)
+        // 第 1 步：标记原子打断信号
         abort_flag_.store(true, std::memory_order_release);
 
-        // Step 2: Instantly swap & clear pending TTS text queue
+        // 第 2 步：原子交换并丢弃未播报的文本队列
         {
             std::lock_guard<std::mutex> lock(tts_mtx_);
             std::queue<std::string> empty;
             std::swap(tts_queue_, empty);
         }
 
-        // Step 3: Purge speaker ring buffer (hardware speaker immediately silences)
+        // 第 3 步：清空底层扬声器环形缓冲区，扬声器在 5ms 内彻底静音
         if (spk_ring_buffer_) {
             spk_ring_buffer_->clear();
         }
 
-        // Step 4: KV Cache Rollback (Section 4.3)
+        // 第 4 步：记忆回滚与大模型 KV 缓存截断
         std::string spoken_so_far;
         {
             std::lock_guard<std::mutex> lock(spoken_mtx_);
@@ -133,7 +178,6 @@ void AudioAgentPipeline::TriggerBargeIn() {
         memory_.RollbackLastAssistantTurn(spoken_so_far);
 
         if (llm_engine_) {
-            // Rough token estimate: 1 UTF-8 Chinese character ≈ 1.5 tokens
             size_t tokens_to_keep = spoken_so_far.size();
             llm_engine_->RollbackTokens(tokens_to_keep);
         }
@@ -142,11 +186,14 @@ void AudioAgentPipeline::TriggerBargeIn() {
             observer_.on_barge_in(spoken_so_far);
         }
 
-        // Step 5: Transition state back to LISTENING
+        // 第 5 步：状态切换回倾听中
         SetState(AgentState::LISTENING);
     }
 }
 
+/**
+ * @brief 投递一条已完成识别的用户提问至认知处理队列
+ */
 void AudioAgentPipeline::SubmitUserQuery(const std::string& user_query) {
     if (user_query.empty()) return;
 
@@ -168,10 +215,7 @@ size_t AudioAgentPipeline::PullSpeakerAudio(float* dest, size_t count) {
 }
 
 void AudioAgentPipeline::OnThermalStatusChanged(int thermal_status) {
-    // Section 6.3: Moderate thermal throttling defense
-    // 0 = NONE, 1 = LIGHT, 2 = MODERATE, 3 = SEVERE, 4 = CRITICAL
     if (thermal_status >= 2) {
-        // Drop LLM worker thread priority or reduce tokens to prevent thermal throttling
         std::cerr << "[Thermal] Status changed to " << thermal_status << ", adjusting power profile.\n";
     }
 }
@@ -194,8 +238,18 @@ LlmStats AudioAgentPipeline::GetLlmStats() const {
     return {};
 }
 
+/**
+ * @brief 感知处理循环（运行于独立线程，绑定能效小核）
+ * 
+ * 职责：
+ * 1. 以 160 采样点（10ms）为基准步长从麦克风无锁缓冲区抽取音频；
+ * 2. 驱动 VAD 语音活动检测：
+ *    - 若在 THINKING/SPEAKING 阶段检测到人声 -> 立即触发 TriggerBargeIn() 打断；
+ *    - 若在 IDLE 阶段检测到人声 -> 迁入 LISTENING；
+ * 3. 驱动 ASR 语音识别引擎产出实时中间字（Partial）与句尾端点（Endpoint）。
+ */
 void AudioAgentPipeline::PerceptionWorkerLoop() {
-    // Bind perception thread to efficiency little cores (<150mW power budget)
+    // 感知线程功耗极低（<150mW），严格绑定至小核运行
     BindThreadToLittleCores(2);
 
     std::vector<float> frame(VAD_FRAME_SIZE_SAMPLES, 0.0f);
@@ -208,7 +262,7 @@ void AudioAgentPipeline::PerceptionWorkerLoop() {
 
         size_t read_frames = mic_ring_buffer_->read(frame.data(), VAD_FRAME_SIZE_SAMPLES);
         if (read_frames < static_cast<size_t>(VAD_FRAME_SIZE_SAMPLES)) {
-            // Not enough frames yet, yield audio slice (5ms)
+            // 数据未就绪，让出时间片休眠 5ms
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             continue;
         }
@@ -218,20 +272,22 @@ void AudioAgentPipeline::PerceptionWorkerLoop() {
 
         if (voice_active) {
             if (cur_state == AgentState::THINKING || cur_state == AgentState::SPEAKING) {
-                // Human voice detected during AI thinking or speaking -> Barge-in!
+                // 助手说话中被用户插话打断！
                 TriggerBargeIn();
             } else if (cur_state == AgentState::IDLE) {
-                // Start listening to user speech
+                // 待命状态下检测到人声，开始倾听
                 SetState(AgentState::LISTENING);
             }
         }
 
         if (state_.load(std::memory_order_acquire) == AgentState::LISTENING) {
+            // 上报流式实时识别中间字
             std::string partial = perception_engine_->GetRecognizedText(false);
             if (!partial.empty() && observer_.on_asr_partial) {
                 observer_.on_asr_partial(partial);
             }
 
+            // 检测到静音端点（约 320ms 连续静音，用户说话完毕）
             if (perception_engine_->IsEndpointDetected()) {
                 std::string final_query = perception_engine_->GetRecognizedText(true);
                 perception_engine_->Reset();
@@ -249,8 +305,20 @@ void AudioAgentPipeline::PerceptionWorkerLoop() {
     }
 }
 
+/**
+ * @brief 认知决策循环（运行于独立线程，绑定性能大核）
+ * 
+ * 职责：
+ * 1. 从 query_queue_ 获取用户提问文本；
+ * 2. 状态迁入 THINKING；
+ * 3. 启动 TTFT 3 秒首字看门狗定时器；
+ * 4. 组装多层记忆上下文（FormatPromptContext）；
+ * 5. 将 StreamingSentenceChunker 作为流式缓冲区注入大模型，驱动流式推理；
+ * 6. 首句断句生成后触发 EnqueueTtsSentence 并喂狗解除告警；
+ * 7. 推理完毕后将完整对话更新入 L1 活跃记忆。
+ */
 void AudioAgentPipeline::CognitionWorkerLoop() {
-    // Bind cognition thread to performance big cores
+    // LLM 推理需要最强算力，绑定至 Cortex-X / 大核
     BindThreadToBigCores(4);
 
     while (is_running_.load(std::memory_order_acquire)) {
@@ -277,10 +345,10 @@ void AudioAgentPipeline::CognitionWorkerLoop() {
 
         std::string full_assistant_response;
 
-        // Set up streaming sentence chunker
+        // 构建流式断句器回调
         SentenceChunkerCallbacks callbacks;
         callbacks.on_sentence_ready = [this, &full_assistant_response](const std::string& sentence) {
-            watchdog_.Feed(); // Feed TTFT watchdog on first chunk!
+            watchdog_.Feed(); // 首句生成成功，立即喂狗！
             full_assistant_response += sentence;
             EnqueueTtsSentence(sentence);
         };
@@ -301,7 +369,7 @@ void AudioAgentPipeline::CognitionWorkerLoop() {
         StreamingSentenceChunker chunker(std::move(callbacks));
         std::ostream llm_stream(&chunker);
 
-        // Start 3-second watchdog timer for First Packet (Section 6.3)
+        // 启动 3 秒 TTFT 看门狗超时熔断
         watchdog_.Start(3000, [this]() {
             abort_flag_.store(true, std::memory_order_release);
             if (observer_.on_watchdog_fallback) {
@@ -310,7 +378,7 @@ void AudioAgentPipeline::CognitionWorkerLoop() {
             EnqueueTtsSentence(TTFTWatchdog::GetFallbackResponsePrompt());
         });
 
-        // Format prompt with System Prompt + Memory
+        // 拼接 ChatML Prompt 并触发模型流式生成
         std::string prompt = memory_.FormatPromptContext(query);
 
         if (llm_engine_) {
@@ -320,20 +388,29 @@ void AudioAgentPipeline::CognitionWorkerLoop() {
         chunker.Flush();
         watchdog_.Stop();
 
-
-        // Dispatch real-time LLM telemetry stats
+        // 派发性能指标上报
         if (llm_engine_ && observer_.on_llm_stats) {
             observer_.on_llm_stats(llm_engine_->GetLatestStats());
         }
-        // Record completed turn to memory
+
+        // 若未被打断，记录该完整轮次至 L1 记忆
         if (!full_assistant_response.empty() && !IsBargeInAborted()) {
             memory_.AddTurn(query, full_assistant_response, false);
         }
     }
 }
 
+/**
+ * @brief 表达合成循环（运行于独立线程，绑定性能大核）
+ * 
+ * 职责：
+ * 1. 逐句从 tts_queue_ 中消费断句文本；
+ * 2. 状态迁入 SPEAKING；
+ * 3. 驱动 Sherpa-onnx VITS/Zipformer TTS 执行流式声学合成；
+ * 4. 合成回调中以 Float PCM 块形式直接写入 spk_ring_buffer_；
+ * 5. 精准累计已实际播报完成的文字，为打断回滚提供精准基准。
+ */
 void AudioAgentPipeline::ExpressionWorkerLoop() {
-    // Bind TTS thread to performance big cores
     BindThreadToBigCores(4);
 
     while (is_running_.load(std::memory_order_acquire)) {
@@ -350,7 +427,7 @@ void AudioAgentPipeline::ExpressionWorkerLoop() {
         }
 
         if (IsBargeInAborted()) {
-            continue; // Dropped by Barge-in
+            continue; // 已被打断，丢弃队列中剩余待播报句子
         }
 
         SetState(AgentState::SPEAKING);
@@ -366,7 +443,7 @@ void AudioAgentPipeline::ExpressionWorkerLoop() {
                 [this, &aborted_during_tts](const float* samples, int32_t count, float /*progress*/) -> int32_t {
                     if (IsBargeInAborted()) {
                         aborted_during_tts = true;
-                        return 0; // Terminate Sherpa-onnx TTS synthesis loop immediately
+                        return 0; // 立即中止 TTS 合成循环
                     }
                     if (spk_ring_buffer_) {
                         spk_ring_buffer_->write(samples, count);
@@ -381,7 +458,7 @@ void AudioAgentPipeline::ExpressionWorkerLoop() {
             spoken_text_accumulator_ += sentence;
         }
 
-        // Check if all queued sentences are spoken
+        // 检查所有待发音句子是否已经全部消费并播放完成
         bool queue_empty = false;
         {
             std::lock_guard<std::mutex> lock(tts_mtx_);
@@ -389,7 +466,7 @@ void AudioAgentPipeline::ExpressionWorkerLoop() {
         }
 
         if (queue_empty && !IsBargeInAborted()) {
-            // Wait for speaker ring buffer to empty without holding tts_mtx_!
+            // 等待扬声器缓冲区内的剩余音频被声卡彻底消费完毕
             while (spk_ring_buffer_ && spk_ring_buffer_->available_read() > 0 &&
                    !IsBargeInAborted() && is_running_.load(std::memory_order_acquire)) {
                 {
@@ -408,6 +485,9 @@ void AudioAgentPipeline::ExpressionWorkerLoop() {
     }
 }
 
+/**
+ * @brief 闲置监控后台线程：低频（每秒一次）巡检对话静默时长并触发记忆归纳
+ */
 void AudioAgentPipeline::IdleMonitorWorkerLoop() {
     while (is_running_.load(std::memory_order_acquire)) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
