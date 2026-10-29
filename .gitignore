@@ -3,6 +3,6 @@
 .idea
 build
 .cxx
-gradle
+!**/gradle/wrapper/**
 .class
 .vscode
