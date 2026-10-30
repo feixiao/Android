@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 1120" width="960" height="1120">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: bold; font-size: 20px; fill: #1a1a1a; }
+      .sub-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; fill: #5f6368; }
+      .layer-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: bold; font-size: 14px; fill: #1967d2; }
+      .box-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: bold; font-size: 13px; fill: #202124; }
+      .box-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11.5px; fill: #3c4043; line-height: 1.4; }
+      .box-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: bold; fill: #ffffff; }
+      .arrow-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10.5px; fill: #5f6368; font-weight: 500; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#1a73e8"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#1e8e3e"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#d93025"/>
+    </marker>
+    <filter id="shadow" x="-3%" y="-3%" width="106%" height="106%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="100%" height="100%" fill="#f8f9fa"/>
+
+  <!-- Header -->
+  <g transform="translate(40, 30)">
+    <rect x="-10" y="-10" width="895" height="55" rx="8" fill="#ffffff" stroke="#dadce0" filter="url(#shadow)"/>
+    <text x="15" y="24" class="title">AudioAgentService 核心实现架构与系统全景图</text>
+    <text x="540" y="24" class="sub-title">Android 端侧全双工 AI 语音 Agent 保活与调度体系</text>
+  </g>
+
+  <!-- Layer 1: UI & Notification Layer -->
+  <g transform="translate(30, 95)">
+    <rect width="900" height="155" rx="10" fill="#ffffff" stroke="#d2e3fc" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="900" height="32" rx="10" fill="#e8f0fe"/>
+    <path d="M 0 22 L 0 32 L 900 32 L 900 22 Z" fill="#e8f0fe"/>
+    <text x="20" y="21" class="layer-title">1. Android 表现层与系统通知交互 (UI &amp; Notification Layer)</text>
+
+    <!-- Card 1.1: MainActivity -->
+    <g transform="translate(20, 45)">
+      <rect width="410" height="95" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="15" y="24" class="box-title">MainActivity (用户交互主界面)</text>
+      <text x="15" y="46" class="box-desc">• StateVisualizerView: 四态光环与呼吸动画 (IDLE/LISTENING/THINKING/SPEAKING)</text>
+      <text x="15" y="65" class="box-desc">• AudioWaveformView: 麦克风捕获与扬声器播放实时音频波形频谱</text>
+      <text x="15" y="84" class="box-desc">• 绑定常驻服务: startForegroundService(ACTION_START)</text>
+    </g>
+
+    <!-- Card 1.2: Ongoing Notification -->
+    <g transform="translate(460, 45)">
+      <rect width="420" height="95" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="15" y="24" class="box-title">前台常驻系统通知 (Ongoing Notification)</text>
+      <text x="15" y="46" class="box-desc">• Channel: audio_agent_service_channel (IMPORTANCE_LOW 静音防串音)</text>
+      <text x="15" y="65" class="box-desc">• [主体点击] PendingIntent.getActivity (SingleTop 快捷无感回跳主界面)</text>
+      <text x="15" y="84" class="box-desc">• [操作按钮] "[打断 (Barge-in)]" ──► 发送 ACTION_BARGE_IN 触发硬掐断</text>
+    </g>
+  </g>
+
+  <!-- Connector Line L1 -> L2 -->
+  <path d="M 225 250 L 225 295" stroke="#1a73e8" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="235" y="278" class="arrow-text">启动/绑定前台服务</text>
+
+  <path d="M 720 250 L 720 295" stroke="#d93025" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <text x="730" y="278" class="arrow-text">通知栏快捷打断 (ACTION_BARGE_IN)</text>
+
+  <!-- Layer 2: AudioAgentService -->
+  <g transform="translate(30, 295)">
+    <rect width="900" height="195" rx="10" fill="#ffffff" stroke="#ceead6" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="900" height="32" rx="10" fill="#e6f4ea"/>
+    <path d="M 0 22 L 0 32 L 900 32 L 900 22 Z" fill="#e6f4ea"/>
+    <text x="20" y="21" class="layer-title" fill="#137333">2. 前台保活宿主与意图路由 (AudioAgentService)</text>
+
+    <!-- Sub-badge -->
+    <rect x="520" y="6" width="365" height="20" rx="4" fill="#1e8e3e"/>
+    <text x="528" y="20" class="box-badge">foregroundServiceType="microphone|mediaPlayback" (防 lmkd 杀后台)</text>
+
+    <!-- Card 2.1: Lifecycle & Elevation -->
+    <g transform="translate(20, 45)">
+      <rect width="270" height="135" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="12" y="22" class="box-title">前台提权与生命周期管理</text>
+      <text x="12" y="44" class="box-desc">• onCreate: 绑定 AudioAgentManager</text>
+      <text x="12" y="64" class="box-desc">• startForeground: 申请系统运行凭据</text>
+      <text x="12" y="84" class="box-desc">• 返回 START_STICKY: 异常崩溃后自启</text>
+      <text x="12" y="104" class="box-desc">• onDestroy: 注销回调并释放前台通知</text>
+      <text x="12" y="124" class="box-desc">• 独立于 Activity: 锁屏息屏全天候驻留</text>
+    </g>
+
+    <!-- Card 2.2: Intent Routing -->
+    <g transform="translate(305, 45)">
+      <rect width="280" height="135" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="12" y="22" class="box-title">onStartCommand 意图路由分发</text>
+      <text x="12" y="44" class="box-desc">• ACTION_START: 提权并初始化流水线</text>
+      <text x="12" y="64" class="box-desc">• ACTION_STOP: 停止引擎并 stopSelf()</text>
+      <text x="12" y="84" class="box-desc">• ACTION_BARGE_IN: 转发微秒级打断</text>
+      <text x="12" y="104" class="box-desc">• 线程安全单例驱动，防止重复创建</text>
+      <text x="12" y="124" class="box-desc">• 统一控制音频捕获/推理/合成状态</text>
+    </g>
+
+    <!-- Card 2.3: Notification Synchronization -->
+    <g transform="translate(600, 45)">
+      <rect width="280" height="135" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="12" y="22" class="box-title">状态同步与通知栏动态更新</text>
+      <text x="12" y="44" class="box-desc">• 实现 AudioAgentListener 接口</text>
+      <text x="12" y="64" class="box-desc">• onStateChanged: 毫秒级捕获 FSM 流转</text>
+      <text x="12" y="84" class="box-desc">• 动态刷新副标题: IDLE (静默待命)</text>
+      <text x="12" y="104" class="box-desc">• LISTENING (倾听) / THINKING (思考)</text>
+      <text x="12" y="124" class="box-desc">• SPEAKING (播报) 实时反馈当前状态</text>
+    </g>
+  </g>
+
+  <!-- Connector Line L2 -> L3 -->
+  <path d="M 445 490 L 445 530" stroke="#1e8e3e" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <text x="455" y="515" class="arrow-text">协调与参数下发 (initializeAndStart / triggerBargeIn / stop)</text>
+
+  <!-- Layer 3: AudioAgentManager Layer -->
+  <g transform="translate(30, 530)">
+    <rect width="900" height="140" rx="10" fill="#ffffff" stroke="#feefc3" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="900" height="32" rx="10" fill="#fef7e0"/>
+    <path d="M 0 22 L 0 32 L 900 32 L 900 22 Z" fill="#fef7e0"/>
+    <text x="20" y="21" class="layer-title" fill="#b06000">3. 系统中枢协调器 (AudioAgentManager - 单例模式)</text>
+
+    <!-- Card 3.1: AudioFocus -->
+    <g transform="translate(20, 45)">
+      <rect width="205" height="80" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="10" y="20" class="box-title">AudioManager 音频焦点</text>
+      <text x="10" y="40" class="box-desc">• VoiceCommunication 模式</text>
+      <text x="10" y="58" class="box-desc">• 独占申请 AUDIOFOCUS_GAIN</text>
+      <text x="10" y="74" class="box-desc">• 来电/导航无缝切流降权</text>
+    </g>
+
+    <!-- Card 3.2: Thermal -->
+    <g transform="translate(240, 45)">
+      <rect width="205" height="80" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="10" y="20" class="box-title">PowerManager 温控感知</text>
+      <text x="10" y="40" class="box-desc">• 注册 ThermalStatus 回调</text>
+      <text x="10" y="58" class="box-desc">• 探测 MODERATE/SEVERE</text>
+      <text x="10" y="74" class="box-desc">• JNI 动态限制 LLM 生成长度</text>
+    </g>
+
+    <!-- Card 3.3: ToolExecutor -->
+    <g transform="translate(460, 45)">
+      <rect width="205" height="80" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="10" y="20" class="box-title">SystemToolExecutor 工具调用</text>
+      <text x="10" y="40" class="box-desc">• 截获 &lt;|tool_call|&gt; JSON</text>
+      <text x="10" y="58" class="box-desc">• 异步执行: 设置闹钟/导航/空调</text>
+      <text x="10" y="74" class="box-desc">• 广播 ToolExecutionResult</text>
+    </g>
+
+    <!-- Card 3.4: ModelManager -->
+    <g transform="translate(680, 45)">
+      <rect width="200" height="80" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="10" y="20" class="box-title">ModelManager 动态模型</text>
+      <text x="10" y="40" class="box-desc">• 探测 Sherpa ASR 目录 (31M)</text>
+      <text x="10" y="58" class="box-desc">• 探测 MNN-LLM 目录 (350M)</text>
+      <text x="10" y="74" class="box-desc">• 动态路径热载入 Native 引擎</text>
+    </g>
+  </g>
+
+  <!-- Connector Line L3 -> L4 -->
+  <path d="M 445 670 L 445 710" stroke="#f2994a" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="455" y="695" class="arrow-text">JNI 桥接调用 (AudioAgentNative)</text>
+
+  <!-- Layer 4: JNI Bridge Layer -->
+  <g transform="translate(30, 710)">
+    <rect width="900" height="110" rx="10" fill="#ffffff" stroke="#f1c2b5" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="900" height="32" rx="10" fill="#fce8e6"/>
+    <path d="M 0 22 L 0 32 L 900 32 L 900 22 Z" fill="#fce8e6"/>
+    <text x="20" y="21" class="layer-title" fill="#c5221f">4. Android JNI 胶水桥接层 (AudioAgentNative.kt &amp; NativeJniBridge.cpp)</text>
+
+    <!-- JNI Left: Kotlin -->
+    <g transform="translate(20, 42)">
+      <rect width="415" height="58" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="12" y="20" class="box-title">AudioAgentNative.kt (Kotlin Native 封装)</text>
+      <text x="12" y="38" class="box-desc">• 句柄绑定: nativeHandle (JniBridgeContext* 内存上下文地址)</text>
+      <text x="12" y="52" class="box-desc">• 向上透传: onNativeStateChanged, onNativeAsrPartial, onNativeToolCall</text>
+    </g>
+
+    <!-- JNI Right: C++ -->
+    <g transform="translate(465, 42)">
+      <rect width="415" height="58" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="12" y="20" class="box-title">NativeJniBridge.cpp (Android 原生跨线程附加)</text>
+      <text x="12" y="38" class="box-desc">• JavaVM::AttachCurrentThread(&amp;env, nullptr) + DetachCurrentThread()</text>
+      <text x="12" y="52" class="box-desc">• 异常安全防护: ExceptionCheck() ──► ExceptionDescribe() ──► Clear()</text>
+    </g>
+  </g>
+
+  <!-- Connector Line L4 -> L5 -->
+  <path d="M 445 820 L 445 860" stroke="#c5221f" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="455" y="845" class="arrow-text">底座核心交互 (libaudio_agent.so)</text>
+
+  <!-- Layer 5: ISO C++17 Core Engine -->
+  <g transform="translate(30, 860)">
+    <rect width="900" height="230" rx="10" fill="#ffffff" stroke="#cbf0f8" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="900" height="32" rx="10" fill="#e4f7fb"/>
+    <path d="M 0 22 L 0 32 L 900 32 L 900 22 Z" fill="#e4f7fb"/>
+    <text x="20" y="21" class="layer-title" fill="#007b83">5. ISO C++17 全双工核心引擎层 (libaudio_agent.so / AudioAgentPipeline)</text>
+
+    <!-- Core Row 1 -->
+    <g transform="translate(20, 42)">
+      <rect width="270" height="82" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="10" y="19" class="box-title">Oboe 双向硬件音频流</text>
+      <text x="10" y="38" class="box-desc">• 模式: VoiceCommunication (DSP AEC)</text>
+      <text x="10" y="54" class="box-desc">• 16kHz 录音输入 (SharingMode::Shared)</text>
+      <text x="10" y="70" class="box-desc">• 24kHz 播音输出 (FastMixer 硬件通道)</text>
+    </g>
+
+    <g transform="translate(305, 42)">
+      <rect width="280" height="82" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="10" y="19" class="box-title">感知线程 (Perception Loop)</text>
+      <text x="10" y="38" class="box-desc">• 绑定 CPU 能效小核 (功耗 &lt;150mW)</text>
+      <text x="10" y="54" class="box-desc">• Silero VAD 毫秒级语音活动检测</text>
+      <text x="10" y="70" class="box-desc">• Sherpa-onnx Zipformer 16kHz 流式识别</text>
+    </g>
+
+    <g transform="translate(600, 42)">
+      <rect width="280" height="82" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="10" y="19" class="box-title">认知线程 (Cognition Loop)</text>
+      <text x="10" y="38" class="box-desc">• 绑定 CPU 性能超大核 (sched_setaffinity)</text>
+      <text x="10" y="54" class="box-desc">• MNN-LLM Qwen2.5 + Prefix KV Cache 固化</text>
+      <text x="10" y="70" class="box-desc">• 动态双阈值切句器 (首句满 6 字节即切出)</text>
+    </g>
+
+    <!-- Core Row 2 -->
+    <g transform="translate(20, 134)">
+      <rect width="270" height="82" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="10" y="19" class="box-title">表达线程 (Expression Loop)</text>
+      <text x="10" y="38" class="box-desc">• 流式 TTS 语音合成分块</text>
+      <text x="10" y="54" class="box-desc">• 20ms 周期无锁写入 SPSC RingBuffer</text>
+      <text x="10" y="70" class="box-desc">• 驱动 Oboe 播音时钟低延迟发声</text>
+    </g>
+
+    <g transform="translate(305, 134)">
+      <rect width="280" height="82" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="10" y="19" class="box-title">原子 Barge-in 打断协调器</text>
+      <text x="10" y="38" class="box-desc">• 置位 abort_flag_ 原子标志位 (&lt;5ms 掐断)</text>
+      <text x="10" y="54" class="box-desc">• 瞬时排空 SPSC 环形播放缓冲区与扬声器</text>
+      <text x="10" y="70" class="box-desc">• 精确回滚大模型未播报的 KV Cache 记忆</text>
+    </g>
+
+    <g transform="translate(600, 134)">
+      <rect width="280" height="82" rx="6" fill="#f8f9fa" stroke="#dadce0"/>
+      <text x="10" y="19" class="box-title">ThreeTierMemory 三级记忆系统</text>
+      <text x="10" y="38" class="box-desc">• L1: Ring KV Cache (前缀 + 最近 4 轮)</text>
+      <text x="10" y="54" class="box-desc">• L2: 闲时语义摘要 (IDLE 10s 后静默提炼)</text>
+      <text x="10" y="70" class="box-desc">• L3: 本地 SQLite 知识库结构化检索持久化</text>
+    </g>
+  </g>
+</svg>
