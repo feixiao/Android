@@ -148,4 +148,39 @@ class ToolSystemTest {
         assertNotNull(required)
         assertEquals("time", required!!.getString(0))
     }
+
+    @Test
+    fun testMusicPlaybackToolSchemaAndMetadata() {
+        val musicTool = com.ai.audioagent.tools.impl.MusicPlaybackTool(
+            context = android.content.ContextWrapper(null)
+        )
+        assertEquals("play_music", musicTool.name)
+        assertEquals(RiskLevel.LOW, musicTool.riskLevel)
+
+        val schema = musicTool.parametersSchema
+        val props = schema.optJSONObject("properties")
+        assertNotNull(props)
+        assertTrue(props!!.has("query"))
+        assertTrue(props.has("artist"))
+        assertTrue(props.has("command"))
+        val required = schema.optJSONArray("required")
+        assertNotNull(required)
+        assertEquals("query", required!!.getString(0))
+    }
+
+    @Test
+    fun testMusicPlaybackToolExecutionFallback() = runBlocking {
+        val musicTool = com.ai.audioagent.tools.impl.MusicPlaybackTool(
+            context = android.content.ContextWrapper(null)
+        )
+        val params = JSONObject().apply {
+            put("query", "晴天")
+            put("artist", "周杰伦")
+            put("command", "play")
+        }
+        val result = musicTool.execute(params)
+        assertTrue(result.success)
+        assertEquals("play_music", result.action)
+        assertTrue(result.summary.contains("晴天"))
+    }
 }

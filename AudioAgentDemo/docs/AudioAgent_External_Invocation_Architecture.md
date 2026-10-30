@@ -244,7 +244,7 @@ enum class RiskLevel { LOW, MEDIUM, HIGH }
 | :--- | :--- | :--- | :--- |
 | **1. Android 原生服务** | `android.provider.AlarmClock`<br>`android.content.Intent` | 调用系统 Intent 静默触发：<br>`AlarmClock.ACTION_SET_ALARM`<br>`Intent.ACTION_CALL`，由系统服务接管。 | 替代 `Toast("已设定明早闹钟")` |
 | **2. 车载硬件控制 (AAOS)** | `android.car.Car`<br>`android.car.hardware.property.CarPropertyManager` | 连接车载硬件抽象层（VHAL）：<br>`carPropertyManager.setFloatProperty(`<br>`VehiclePropertyIds.HVAC_TEMPERATURE_SET, ...)` 直接写入 CAN 总线驱动底层电机。 | 替代 `Toast("空调温度已调至")` |
-| **3. 第三方生态应用** | 隐式 DeepLink<br>`android.media.session.MediaSessionManager` | 1. 导航：发送高德/百度专用 URI scheme (`androidamap://route/plan`)；<br>2. 音乐：通过 `MediaController` 发送 `TransportControls.playFromSearch()` 调起媒体播控。 | 替代 `Toast("已在后台规划至")` |
+| **3. 第三方生态应用** | 隐式 DeepLink<br>`android.media.session.MediaSessionManager`<br>`MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH` | 1. 导航：优先高德地图 (`androidamap://route/plan`)，依次降级百度地图与系统 Geo 意图；<br>2. 音乐：优先网易云 (`orpheus://search`)、QQ 音乐 (`qqmusic://`)，依次降级 Android 原生 `MEDIA_PLAY_FROM_SEARCH` 与系统默认音乐 App，并支持全局 MediaKeyEvent 播控。 | 替代 `Toast("已在后台规划至")` 与写死音乐提示 |
 | **4. 云端服务 / 边缘 IoT** | `Retrofit` / `gRPC-Android`<br>HTTP/2 长连接 | 异步调用车联网/智能家居云端 OpenAPI，实现车家互联、实时路况与航班信息检索。 | 替代本地写死的天气固定文案 |
 
 ---

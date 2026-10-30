@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
     private lateinit var btnWhoPrompt: Button
     private lateinit var btnWeatherPrompt: Button
     private lateinit var btnNavPrompt: Button
+    private lateinit var btnMusicPrompt: Button
     private lateinit var btnAcPrompt: Button
     private lateinit var btnJokePrompt: Button
     private lateinit var btnSkyPrompt: Button
@@ -116,6 +117,7 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
         btnWhoPrompt = findViewById(R.id.btnWhoPrompt)
         btnWeatherPrompt = findViewById(R.id.btnWeatherPrompt)
         btnNavPrompt = findViewById(R.id.btnNavPrompt)
+        btnMusicPrompt = findViewById(R.id.btnMusicPrompt)
         btnAcPrompt = findViewById(R.id.btnAcPrompt)
         btnJokePrompt = findViewById(R.id.btnJokePrompt)
         btnSkyPrompt = findViewById(R.id.btnSkyPrompt)
@@ -216,6 +218,11 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
         }
         btnNavPrompt.setOnClickListener {
             val q = "帮我把导航设到杭州西湖文化广场"
+            appendLog("[用户问] $q")
+            agentManager.submitUserQuery(q)
+        }
+        btnMusicPrompt.setOnClickListener {
+            val q = "放一首周杰伦的晴天"
             appendLog("[用户问] $q")
             agentManager.submitUserQuery(q)
         }

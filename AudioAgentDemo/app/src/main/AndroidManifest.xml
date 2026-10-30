@@ -46,6 +46,21 @@
         <intent>
             <action android:name="android.intent.action.DIAL" />
         </intent>
+        <!-- Package visibility for Music Streaming Apps (Section 4.2) -->
+        <package android:name="com.netease.cloudmusic" />
+        <package android:name="com.tencent.qqmusic" />
+        <package android:name="com.kugou.android" />
+        <intent>
+            <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="orpheus" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="qqmusic" />
+        </intent>
     </queries>
     <application
         android:allowBackup="true"

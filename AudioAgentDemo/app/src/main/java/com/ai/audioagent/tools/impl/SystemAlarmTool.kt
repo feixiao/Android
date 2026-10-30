@@ -65,9 +65,8 @@ class SystemAlarmTool(private val context: Context) : AgentTool {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
 
-        val pm = context.packageManager
-        val resolvable = pm.queryIntentActivities(alarmIntent, PackageManager.MATCH_DEFAULT_ONLY).isNotEmpty()
-
+        val pm = try { context.packageManager } catch (e: Exception) { null }
+        val resolvable = pm?.queryIntentActivities(alarmIntent, PackageManager.MATCH_DEFAULT_ONLY)?.isNotEmpty() == true
         if (resolvable) {
             try {
                 context.startActivity(alarmIntent)

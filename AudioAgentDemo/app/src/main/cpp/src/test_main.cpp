@@ -682,6 +682,12 @@ public:
                 dest = query.substr(p + 3);
             }
             *out_stream << "好的，马上为您规划前往" << dest << "的最佳路线。<|tool_call|>{\"action\":\"start_nav\",\"dest\":\"" << dest << "\"}<|/tool_call|>";
+        } else if (query.find("放") != std::string::npos || query.find("听") != std::string::npos ||
+                   query.find("音乐") != std::string::npos || query.find("歌") != std::string::npos) {
+            std::string song = "晴天";
+            if (query.find("晴天") != std::string::npos) song = "晴天";
+            else if (query.find("海阔天空") != std::string::npos) song = "海阔天空";
+            *out_stream << "好的，为您播放" << song << "。<|tool_call|>{\"action\":\"play_music\",\"query\":\"" << song << "\"}<|/tool_call|>";
         } else if (query.find("蓝") != std::string::npos || query.find("为什么") != std::string::npos) {
             *out_stream << "这叫瑞利散射。阳光里的蓝光容易被空气散射。";
         } else {
@@ -739,6 +745,15 @@ static void TestDynamicCognition() {
         llm.ResponseStream("我想买一台轻薄笔记本电脑", &ss);
         std::string reply = ss.str();
         assert(reply.find("我想买一台轻薄笔记本电脑") != std::string::npos);
+    }
+
+    // 6. Music Playback Tool Calling
+    {
+        std::stringstream ss;
+        llm.ResponseStream("放一首周杰伦的晴天", &ss);
+        std::string reply = ss.str();
+        assert(reply.find("晴天") != std::string::npos);
+        assert(reply.find("{\"action\":\"play_music\",\"query\":\"晴天\"}") != std::string::npos);
     }
 
     LogPass("Dynamic Intent Parsing and Tool Calling passed all tests.");

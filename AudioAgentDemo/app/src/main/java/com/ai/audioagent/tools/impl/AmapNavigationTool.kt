@@ -162,9 +162,13 @@ class AmapNavigationTool(private val context: Context) : AgentTool {
     }
 
     private fun isIntentResolvable(context: Context, intent: Intent): Boolean {
-        val pm = context.packageManager
-        val list = pm.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
-        return list.isNotEmpty()
+        return try {
+            val pm = context.packageManager ?: return false
+            val list = pm.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            !list.isNullOrEmpty()
+        } catch (e: Exception) {
+            false
+        }
     }
 
     companion object {
