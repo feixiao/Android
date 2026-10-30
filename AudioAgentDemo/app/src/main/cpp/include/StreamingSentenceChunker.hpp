@@ -46,6 +46,9 @@ public:
 
     // Total characters/bytes emitted
     size_t GetTotalBytesEmitted() const { return total_bytes_emitted_; }
+    // Whether a tool call has been parsed and dispatched in this cycle
+    bool HasDispatchedToolCall() const { return has_dispatched_tool_; }
+
 
 protected:
     std::streamsize xsputn(const char* s, std::streamsize n) override;
@@ -60,6 +63,7 @@ private:
     std::string history_for_repetition_;
     bool is_first_sentence_{true};
     bool in_tool_call_{false};
+    bool has_dispatched_tool_{false};
     size_t sentences_emitted_{0};
     size_t total_bytes_emitted_{0};
 

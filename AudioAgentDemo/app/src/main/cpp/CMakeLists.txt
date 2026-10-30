@@ -26,6 +26,7 @@ include_directories(
 # Source files
 set(AUDIO_AGENT_SOURCES
     src/CpuAffinity.cpp
+    src/IntentArbiter.cpp
     src/StreamingSentenceChunker.cpp
     src/WatchdogAndRepetition.cpp
     src/ThreeTierMemory.cpp

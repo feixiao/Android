@@ -227,7 +227,7 @@ Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeCreate(
         });
     };
 
-    ctx->pipeline = std::make_shared<AudioAgentPipeline>(perception, ctx->mnn_llm, tts, std::move(observer));
+    ctx->pipeline = std::make_shared<AudioAgentPipeline>(perception, ctx->mnn_llm, tts, std::move(observer), sys_prompt);
     return reinterpret_cast<jlong>(ctx);
 }
 

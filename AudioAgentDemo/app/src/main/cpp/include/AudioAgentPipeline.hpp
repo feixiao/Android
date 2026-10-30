@@ -7,6 +7,7 @@
 #include "ThreeTierMemory.hpp"
 #include "FullDuplexAudioIO.hpp"
 #include "CpuAffinity.hpp"
+#include "IntentArbiter.hpp"
 
 #include <atomic>
 #include <string>
@@ -52,7 +53,8 @@ public:
         std::shared_ptr<ISpeechPerceptionEngine> perception_engine,
         std::shared_ptr<ILlmEngine> llm_engine,
         std::shared_ptr<ISpeechSynthesisEngine> tts_engine,
-        PipelineObserver observer = {}
+        PipelineObserver observer = {},
+        std::string system_prompt = ""
     );
 
     ~AudioAgentPipeline();
@@ -105,6 +107,10 @@ public:
     std::string GetStateString() const {
         return AgentStateToString(GetState());
     }
+    void SetSystemPrompt(const std::string& system_prompt) {
+        memory_.SetSystemPrompt(system_prompt);
+    }
+
 
     ThreeTierMemory& GetMemory() { return memory_; }
     const std::string& GetSpokenTextAccumulator() const { return spoken_text_accumulator_; }

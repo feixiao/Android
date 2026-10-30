@@ -24,11 +24,15 @@ AudioAgentPipeline::AudioAgentPipeline(
     std::shared_ptr<ISpeechPerceptionEngine> perception_engine,
     std::shared_ptr<ILlmEngine> llm_engine,
     std::shared_ptr<ISpeechSynthesisEngine> tts_engine,
-    PipelineObserver observer
+    PipelineObserver observer,
+    std::string system_prompt
 ) : perception_engine_(std::move(perception_engine)),
     llm_engine_(std::move(llm_engine)),
     tts_engine_(std::move(tts_engine)),
     observer_(std::move(observer)) {
+    if (!system_prompt.empty()) {
+        memory_.SetSystemPrompt(system_prompt);
+    }
     // 为录音与放音分配 10 秒深度的无锁环形缓冲区
     mic_ring_buffer_ = std::make_shared<LockFreeSPSCRingBuffer<float>>(DEFAULT_MIC_SAMPLE_RATE * 10);
     spk_ring_buffer_ = std::make_shared<LockFreeSPSCRingBuffer<float>>(DEFAULT_SPK_SAMPLE_RATE * 10);
@@ -344,6 +348,9 @@ void AudioAgentPipeline::CognitionWorkerLoop() {
         }
 
         std::string full_assistant_response;
+        // 意图仲裁器前置分析：提前提取确定性的端侧系统控制意图
+        std::string fallback_tool_json = IntentArbiter::ResolveToolCall(query);
+
 
         // 构建流式断句器回调
         SentenceChunkerCallbacks callbacks;
@@ -387,6 +394,36 @@ void AudioAgentPipeline::CognitionWorkerLoop() {
 
         chunker.Flush();
         watchdog_.Stop();
+        // 意图补偿防漏调：若端侧小模型未能吐出 <|tool_call|>，而该 Query 包含明确的系统控制指令
+        if (!chunker.HasDispatchedToolCall() && !fallback_tool_json.empty() && !IsBargeInAborted()) {
+            std::cerr << "[IntentArbiter] Compensating missing tool call for query: '" << query
+                      << "' -> dispatching: " << fallback_tool_json << std::endl;
+            DispatchAsyncToolCall(fallback_tool_json);
+
+            // 若模型未生成任何回复（如超时或未吐字），自动合成口语安抚回复推入 TTS
+            if (full_assistant_response.empty()) {
+                std::string reassurance;
+                if (fallback_tool_json.find("start_nav") != std::string::npos) {
+                    std::string dest = IntentArbiter::ExtractNavDestination(query);
+                    reassurance = "好的，马上为您规划前往" + dest + "的最佳路线。";
+                } else if (fallback_tool_json.find("set_ac_temp") != std::string::npos) {
+                    reassurance = "好的，已为您调整空调温度。";
+                } else if (fallback_tool_json.find("set_ac_power") != std::string::npos) {
+                    reassurance = "好的，已为您设置空调。";
+                } else if (fallback_tool_json.find("play_music") != std::string::npos) {
+                    reassurance = "好的，为您播放音乐。";
+                } else if (fallback_tool_json.find("set_alarm") != std::string::npos) {
+                    reassurance = "好的，已为您设定闹钟。";
+                } else if (fallback_tool_json.find("query_weather") != std::string::npos) {
+                    reassurance = "好的，正在为您查询天气。";
+                }
+                if (!reassurance.empty()) {
+                    full_assistant_response = reassurance;
+                    EnqueueTtsSentence(reassurance);
+                }
+            }
+        }
+
 
         // 派发性能指标上报
         if (llm_engine_ && observer_.on_llm_stats) {

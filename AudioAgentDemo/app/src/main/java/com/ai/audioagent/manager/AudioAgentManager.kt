@@ -65,7 +65,7 @@ class AudioAgentManager private constructor(private val appContext: Context) : A
 
         requestAudioFocus()
 
-        val created = nativeEngine.create()
+        val created = nativeEngine.create(AudioAgentNative.DEFAULT_SYSTEM_PROMPT)
         if (!created) {
             Log.e(TAG, "Failed to create native AudioAgent pipeline")
             return false

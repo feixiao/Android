@@ -12,6 +12,7 @@ void StreamingSentenceChunker::Reset() {
     history_for_repetition_.clear();
     is_first_sentence_ = true;
     in_tool_call_ = false;
+    has_dispatched_tool_ = false;
     sentences_emitted_ = 0;
     total_bytes_emitted_ = 0;
 }
@@ -50,6 +51,9 @@ std::streamsize StreamingSentenceChunker::xsputn(const char* s, std::streamsize 
     // 3. 工具调用协议检测与拦截：识别形如 <|tool_call|>{"name":"..."}<|/tool_call|>
     if (!in_tool_call_) {
         size_t open_pos = buffer_.find("<|tool_call|>");
+        if (open_pos == std::string::npos) {
+            open_pos = buffer_.find("<tool_call>");
+        }
         if (open_pos != std::string::npos) {
             // 若标签前存在自然语音片段（如“好的，马上为您查询<|tool_call|>...”），优先将前缀送给 TTS 播报！
             if (open_pos > 0) {
@@ -66,16 +70,21 @@ std::streamsize StreamingSentenceChunker::xsputn(const char* s, std::streamsize 
 
     if (in_tool_call_) {
         size_t close_pos = buffer_.find("<|/tool_call|>");
+        size_t close_tag_len = 14;
+        if (close_pos == std::string::npos) {
+            close_pos = buffer_.find("</tool_call>");
+            close_tag_len = 12;
+        }
         if (close_pos != std::string::npos) {
             // 工具调用闭合标签完整到达，解析其内部 JSON 载荷
-            size_t tag_len = std::string("<|/tool_call|>").length();
-            std::string raw_tool_block = buffer_.substr(0, close_pos + tag_len);
+            std::string raw_tool_block = buffer_.substr(0, close_pos + close_tag_len);
             std::string json_body = ExtractToolJson(raw_tool_block);
             if (callbacks_.on_tool_call && !json_body.empty()) {
                 callbacks_.on_tool_call(json_body);
+                has_dispatched_tool_ = true;
             }
             // 从语音播报缓冲区中彻底抹除工具调用协议块，绝不送往 TTS 朗读
-            buffer_.erase(0, close_pos + tag_len);
+            buffer_.erase(0, close_pos + close_tag_len);
             in_tool_call_ = false;
         }
         return n;
@@ -117,8 +126,20 @@ void StreamingSentenceChunker::Flush() {
         return;
     }
 
+    // 若流结束时仍处于工具调用状态，尝试容错提取并派发
+    if (in_tool_call_) {
+        std::string json_body = ExtractToolJson(buffer_);
+        if (callbacks_.on_tool_call && !json_body.empty()) {
+            callbacks_.on_tool_call(json_body);
+            has_dispatched_tool_ = true;
+        }
+        buffer_.clear();
+        in_tool_call_ = false;
+        return;
+    }
+
     // 若非工具调用状态且缓冲区残留文本，无条件发送尾句
-    if (!buffer_.empty() && !in_tool_call_) {
+    if (!buffer_.empty()) {
         if (callbacks_.on_sentence_ready) {
             callbacks_.on_sentence_ready(buffer_);
             sentences_emitted_++;
@@ -170,18 +191,36 @@ bool StreamingSentenceChunker::DetectRepetition(const std::string& new_text) {
  * @brief 提取 <|tool_call|> 与 <|/tool_call|> 中间的 JSON 结构体字符串
  */
 std::string StreamingSentenceChunker::ExtractToolJson(const std::string& raw) {
-    const std::string open_tag = "<|tool_call|>";
-    const std::string close_tag = "<|/tool_call|>";
-
-    size_t start = raw.find(open_tag);
-    if (start == std::string::npos) return "";
-    start += open_tag.length();
-
-    size_t end = raw.find(close_tag, start);
-    if (end == std::string::npos) {
-        return raw.substr(start);
+    size_t start = raw.find("<|tool_call|>");
+    size_t tag_len = 13;
+    if (start == std::string::npos) {
+        start = raw.find("<tool_call>");
+        tag_len = 11;
     }
-    return raw.substr(start, end - start);
+
+    if (start != std::string::npos) {
+        start += tag_len;
+        size_t end = raw.find("<|/tool_call|>", start);
+        if (end == std::string::npos) {
+            end = raw.find("</tool_call>", start);
+        }
+        if (end == std::string::npos) {
+            return raw.substr(start);
+        }
+        return raw.substr(start, end - start);
+    }
+
+    // 容错：查找 raw 中的 JSON 结构体 {...}
+    size_t brace_open = raw.find('{');
+    size_t brace_close = raw.rfind('}');
+    if (brace_open != std::string::npos && brace_close != std::string::npos && brace_close > brace_open) {
+        std::string candidate = raw.substr(brace_open, brace_close - brace_open + 1);
+        if (candidate.find("\"action\"") != std::string::npos) {
+            return candidate;
+        }
+    }
+
+    return "";
 }
 
 } // namespace audio_agent

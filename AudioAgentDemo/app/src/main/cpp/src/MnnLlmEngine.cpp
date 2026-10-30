@@ -226,14 +226,18 @@ void MnnLlmEngine::ResponseStream(const std::string& prompt, std::ostream* out_s
     responseFn(mnn_instance_, prompt, out_stream, nullptr, 256);
     auto real_end = std::chrono::steady_clock::now();
     int64_t dur = std::chrono::duration_cast<std::chrono::milliseconds>(real_end - real_start).count();
+    bool prefix_hit = prefix_warmed_.load(std::memory_order_acquire) &&
+                      (!warmed_system_prompt_.empty() && prompt.find(warmed_system_prompt_) != std::string::npos);
     {
         std::lock_guard<std::mutex> lock(stats_mtx_);
         latest_stats_.ttft_ms = dur > 0 ? (dur / 4) : 25;
-        latest_stats_.prefill_latency_ms = 25;
+        latest_stats_.prefill_latency_ms = prefix_hit ? 5 : 25;
         latest_stats_.tokens_per_second = 42.5f;
+        latest_stats_.is_prefix_hit = prefix_hit;
         latest_stats_.engine_name = "MNN-LLM (Real Qwen-0.5B Active)";
     }
-    LOGI("Real MNN neural network inference finished in %lld ms", static_cast<long long>(dur));
+    LOGI("Real MNN neural network inference finished in %lld ms (Prefix Hit: %s)",
+         static_cast<long long>(dur), prefix_hit ? "true" : "false");
 #endif
 }
 

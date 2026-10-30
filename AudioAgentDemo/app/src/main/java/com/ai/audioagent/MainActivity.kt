@@ -579,7 +579,7 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
 
     override fun onToolCall(toolJson: String) {
         runOnUiThread {
-            appendLog("[拦截工具标签] 识别到 <|tool_call|>，不送入TTS，分流执行。")
+            appendLog("[工具指令分流] 捕获控制指令: $toolJson，不送入TTS，静默分流执行")
         }
     }
 

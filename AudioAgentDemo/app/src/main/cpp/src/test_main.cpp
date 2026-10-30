@@ -7,6 +7,7 @@
 #include "AudioAgentPipeline.hpp"
 #include "MnnLlmEngine.hpp"
 #include "MockCloudLlmEngine.hpp"
+#include "IntentArbiter.hpp"
 #include <iostream>
 #include <sstream>
 #include <cassert>
@@ -975,6 +976,100 @@ static void TestMnnLlmEngineAndCloudComparison() {
     LogPass("MNN-LLM On-Device Engine and Cloud Comparison passed.");
 }
 
+static void TestIntentArbiterSuite() {
+    LogTest("Intent Arbiter & Small-Model Tool Call Compensation");
+
+    // 1. User says "说从亚运动员导航到西湖" (User's exact real-world scenario)
+    {
+        std::string tool = IntentArbiter::ResolveToolCall("说从亚运动员导航到西湖");
+        assert(!tool.empty());
+        assert(tool.find("start_nav") != std::string::npos);
+        assert(tool.find("西湖") != std::string::npos);
+    }
+
+    // 2. "帮我把导航设到杭州西湖文化广场"
+    {
+        std::string tool = IntentArbiter::ResolveToolCall("帮我把导航设到杭州西湖文化广场");
+        assert(!tool.empty());
+        assert(tool.find("start_nav") != std::string::npos);
+        assert(tool.find("杭州西湖文化广场") != std::string::npos);
+    }
+
+    // 3. "从亚运村到西湖文化广场怎么走"
+    {
+        std::string tool = IntentArbiter::ResolveToolCall("从亚运村到西湖文化广场怎么走");
+        assert(!tool.empty());
+        assert(tool.find("start_nav") != std::string::npos);
+        assert(tool.find("西湖文化广场") != std::string::npos);
+    }
+
+    // 4. "导航去北京天安门广场"
+    {
+        std::string tool = IntentArbiter::ResolveToolCall("导航去北京天安门广场");
+        assert(!tool.empty());
+        assert(tool.find("start_nav") != std::string::npos);
+        assert(tool.find("北京天安门广场") != std::string::npos);
+    }
+
+    // 5. Air conditioner: "把空调温度调到二十四度" & "关空调"
+    {
+        std::string tool1 = IntentArbiter::ResolveToolCall("把空调温度调到二十四度");
+        assert(tool1.find("set_ac_temp") != std::string::npos);
+        assert(tool1.find("24") != std::string::npos);
+
+        std::string tool2 = IntentArbiter::ResolveToolCall("关闭空调");
+        assert(tool2.find("set_ac_power") != std::string::npos);
+        assert(tool2.find("off") != std::string::npos);
+    }
+
+    // 6. Music: "放一首周杰伦的晴天"
+    {
+        std::string tool = IntentArbiter::ResolveToolCall("放一首周杰伦的晴天");
+        assert(tool.find("play_music") != std::string::npos);
+        assert(tool.find("晴天") != std::string::npos);
+    }
+
+    // 7. Non-tool queries must NOT trigger tools (Anti-conflict invariant)
+    {
+        assert(IntentArbiter::ResolveToolCall("为什么天空是蓝色的啊").empty());
+        assert(IntentArbiter::ResolveToolCall("给我讲个好笑的笑话吧").empty());
+        assert(IntentArbiter::ResolveToolCall("现在几点了？").empty());
+        assert(IntentArbiter::ResolveToolCall("你好，请问你是谁？").empty());
+    }
+
+    // 8. Pipeline Tool Compensation Simulation:
+    // If LLM generates purely conversational text without <|tool_call|>, IntentArbiter compensates and dispatches it!
+    class ConversationalOnlyLlm : public ILlmEngine {
+    public:
+        void ResponseStream(const std::string&, std::ostream* out) override {
+            *out << "好的，我会的。请稍等。";
+            out->flush();
+        }
+        void RollbackTokens(size_t) override {}
+        bool WarmupPrefix(const std::string&) override { return true; }
+    };
+
+    auto perception = std::make_shared<SimulatedPerceptionEngine>();
+    auto conv_llm = std::make_shared<ConversationalOnlyLlm>();
+    auto tts = std::make_shared<SimulatedTtsEngine>();
+    std::vector<std::string> compensated_tools;
+    PipelineObserver observer;
+    observer.on_tool_call = [&](const std::string& tool_json) {
+        compensated_tools.push_back(tool_json);
+    };
+
+    AudioAgentPipeline pipeline(perception, conv_llm, tts, observer);
+    pipeline.Start();
+    pipeline.SubmitUserQuery("说从亚运动员导航到西湖");
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    assert(!compensated_tools.empty());
+    assert(compensated_tools.back().find("start_nav") != std::string::npos);
+    assert(compensated_tools.back().find("西湖") != std::string::npos);
+    pipeline.Stop();
+
+    LogPass("Intent Arbiter and Small-Model Tool Call Compensation passed all tests.");
+}
+
 int main() {
     std::cout << "\n=======================================================\n";
     std::cout << "  Android AI Audio Agent C++17 Unit Test Suite\n";
@@ -1016,7 +1111,9 @@ int main() {
     TestModelConfigurationAndPerception();
     std::cout << std::endl;
     TestMnnLlmEngineAndCloudComparison();
+    TestIntentArbiterSuite();
+    std::cout << std::endl;
     std::cout << std::endl;
 
-    std::cout << COLOR_GREEN << "ALL 13 TEST SUITES PASSED SUCCESSFULLY!" << COLOR_RESET << "\n\n";
+    std::cout << COLOR_GREEN << "ALL 14 TEST SUITES PASSED SUCCESSFULLY!" << COLOR_RESET << "\n\n";
 }

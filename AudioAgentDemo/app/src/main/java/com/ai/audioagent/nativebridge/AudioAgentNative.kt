@@ -51,7 +51,7 @@ class AudioAgentNative(private val listener: AudioAgentListener? = null) {
     /**
      * Initializes the native pipeline with system prompt
      */
-    fun create(systemPrompt: String = "你是本地全双工AI语音助手，请用极简纯口语回答，严禁使用符号与阿拉伯数字。"): Boolean {
+    fun create(systemPrompt: String = DEFAULT_SYSTEM_PROMPT): Boolean {
         if (nativeHandle != 0L) return true
         nativeHandle = nativeCreate(systemPrompt)
         return nativeHandle != 0L
@@ -237,6 +237,17 @@ class AudioAgentNative(private val listener: AudioAgentListener? = null) {
     private external fun nativeDestroy(handle: Long)
 
     companion object {
+        const val DEFAULT_SYSTEM_PROMPT: String =
+            "你是运行于Android端侧的高性能实时语音助理。请用极简纯口语回答，严禁使用Markdown符号与阿拉伯数字。\n" +
+            "当用户需要导航、开闭空调调节温度、播放音乐、设置闹钟、查询天气、拨打电话时，必须在第一句给出即时口语安抚，并在紧随其后输出工具调用标签：<|tool_call|>{\"action\":\"<动作名>\",...}<|/tool_call|>。\n" +
+            "支持的工具动作：\n" +
+            "1. 导航：{\"action\":\"start_nav\",\"dest\":\"目的地\"}\n" +
+            "2. 空调：{\"action\":\"set_ac_temp\",\"value\":温度数字} 或 {\"action\":\"set_ac_power\",\"state\":\"on/off\"}\n" +
+            "3. 音乐：{\"action\":\"play_music\",\"query\":\"歌名或歌手\"}\n" +
+            "4. 闹钟：{\"action\":\"set_alarm\",\"time\":\"HH:mm\"}\n" +
+            "5. 天气：{\"action\":\"query_weather\",\"city\":\"城市名\"}\n" +
+            "6. 电话：{\"action\":\"dial_phone\",\"phone\":\"号码或姓名\"}"
+
         @JvmStatic
         external fun nativeGetTopPerformanceCores(topN: Int): IntArray
     }

@@ -72,6 +72,7 @@ test:
 	cd app/src/main/cpp && clang++ -std=c++17 -O2 -Wall -Wextra \
 		-I include \
 		src/CpuAffinity.cpp \
+		src/IntentArbiter.cpp \
 		src/StreamingSentenceChunker.cpp \
 		src/WatchdogAndRepetition.cpp \
 		src/ThreeTierMemory.cpp \
