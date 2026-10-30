@@ -131,7 +131,7 @@ bool SherpaOnnxPerceptionEngine::LoadZipformerModel(const std::string& dir_path)
     config.max_active_paths = 4;
     config.enable_endpoint = 1;
     config.rule1_min_trailing_silence = 2.4f;
-    config.rule2_min_trailing_silence = 0.8f; // 800ms 静音判定句末落音
+    config.rule2_min_trailing_silence = VAD_SILENCE_THRESHOLD_SEC; // 静音判定句末落音 (EngineInterfaces.hpp)
     config.rule3_min_utterance_length = 30.0f;
 
     LOGI("Creating SherpaOnnxOnlineRecognizer with encoder: %s", enc.c_str());
@@ -214,8 +214,11 @@ bool SherpaOnnxPerceptionEngine::AcceptAudioChunk(const float* samples, int32_t 
     } else {
         if (in_speech_) {
             silence_frames_++;
-            // 连续静音约 800ms (25 帧) 判定自然落音截断
-            if (silence_frames_ >= 25) {
+            // 根据 VAD_SILENCE_THRESHOLD_SEC 动态计算所需连续静音帧数 (例如 800ms / 32ms = 25 帧)
+            constexpr int kEndpointSilenceFrames = static_cast<int>(
+                VAD_SILENCE_THRESHOLD_SEC * DEFAULT_MIC_SAMPLE_RATE / VAD_FRAME_SIZE_SAMPLES
+            );
+            if (silence_frames_ >= kEndpointSilenceFrames) {
                 in_speech_ = false;
                 endpoint_detected_.store(true, std::memory_order_release);
                 speech_frames_ = 0;

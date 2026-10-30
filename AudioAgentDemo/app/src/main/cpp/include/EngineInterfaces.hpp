@@ -14,7 +14,7 @@ namespace audio_agent {
 constexpr int32_t DEFAULT_MIC_SAMPLE_RATE = 16000; // 16kHz for Silero VAD & Sherpa-onnx Zipformer ASR
 constexpr int32_t DEFAULT_SPK_SAMPLE_RATE = 24000; // 24kHz for Kokoro / Piper TTS
 constexpr int32_t VAD_FRAME_SIZE_SAMPLES = 512;    // 32ms at 16kHz
-constexpr float VAD_SILENCE_THRESHOLD_SEC = 0.3f;  // 300ms endpoint cutoff
+constexpr float VAD_SILENCE_THRESHOLD_SEC = 0.8f;  // 800ms natural endpoint cutoff (Whitepaper Section 1.3 & Sherpa-onnx)
 
 /**
  * Finite State Machine for Full-Duplex AI Audio Agent
@@ -47,7 +47,7 @@ public:
     // Push mic audio chunk (16kHz float mono). Returns true if human voice is actively detected by VAD
     virtual bool AcceptAudioChunk(const float* samples, int32_t count) = 0;
 
-    // Check if user has stopped speaking (silence > 300ms endpoint)
+    // Check if user has stopped speaking (silence > VAD_SILENCE_THRESHOLD_SEC endpoint)
     virtual bool IsEndpointDetected() = 0;
 
     // Get current ASR recognized text (incremental or final)
