@@ -76,13 +76,30 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
     }
 
     private fun handleIntent(intent: android.content.Intent?) {
-        intent?.getStringExtra("query")?.let { q ->
+        if (intent == null) return
+
+        // 1. DeepLink 统一协议解析: voiceagent://query?text=... (Section 3.3)
+        val dataUri = intent.data
+        if (dataUri != null && dataUri.scheme == "voiceagent") {
+            val deepQuery = dataUri.getQueryParameter("text")
+                ?: dataUri.getQueryParameter("query")
+                ?: dataUri.getQueryParameter("q")
+            if (!deepQuery.isNullOrEmpty()) {
+                val source = dataUri.getQueryParameter("source") ?: "DeepLink"
+                appendLog("[外部接入] 🔗 DeepLink 意图注入 ($source): $deepQuery")
+                agentManager.submitUserQuery(deepQuery)
+                return
+            }
+        }
+
+        // 2. 标准 Intent 参数注入
+        intent.getStringExtra("query")?.let { q ->
             if (q.isNotEmpty()) {
-                appendLog("[用户问] $q")
+                appendLog("[外部接入] 📩 Intent 意图注入: $q")
                 agentManager.submitUserQuery(q)
             }
         }
-        if (intent?.getBooleanExtra("start_voice", false) == true) {
+        if (intent.getBooleanExtra("start_voice", false)) {
             startSpeechRecognition()
         }
     }
@@ -508,8 +525,8 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
 
     private fun handleToolExecutionResult(result: ToolExecutionResult) {
         tvToolCallBanner.visibility = View.VISIBLE
-        tvToolCallBanner.text = "⚡ 异步工具执行完成: ${result.summary}\nJSON: ${result.rawJson}"
-        appendLog("[异步工具执行] ${result.summary}")
+        tvToolCallBanner.text = "⚡ 外部工具执行: ${result.summary}\n【调用通道: ${result.channel}】\nJSON: ${result.rawJson}"
+        appendLog("[工具调用完成] ${result.summary} (通道: ${result.channel})")
     }
 
     // -------------------------------------------------------------

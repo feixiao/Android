@@ -5,6 +5,13 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+
+    <!-- IPC permission for external applications -->
+    <permission
+        android:name="com.ai.audioagent.permission.CONTROL_AGENT"
+        android:protectionLevel="normal" />
+    <uses-permission android:name="com.ai.audioagent.permission.CONTROL_AGENT" />
 
     <!-- Foreground Service & Media Permissions (Whitepaper Section 6.3) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -12,13 +19,34 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Package visibility for Android Speech Recognition Services (API 30+) -->
+    <!-- Package visibility queries for Android 11+ (API 30+) -->
     <queries>
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+        <!-- Package visibility for Map Navigation Apps (Section 4.2) -->
+        <package android:name="com.autonavi.minimap" />
+        <package android:name="com.baidu.BaiduMap" />
+        <package android:name="com.tencent.map" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="androidamap" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="baidumap" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SET_ALARM" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
     </queries>
-
     <application
         android:allowBackup="true"
         android:icon="@android:drawable/ic_btn_speak_now"
@@ -36,15 +64,28 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- DeepLink support: voiceagent://query?text=... (Section 3.3) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="voiceagent" android:host="query" />
+            </intent-filter>
         </activity>
 
-        <!-- Foreground Service preventing lmkd termination -->
+        <!-- Foreground Service preventing lmkd termination and offering IPC AIDL interface -->
         <service
             android:name=".service.AudioAgentService"
             android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="microphone|mediaPlayback" />
-
+            android:exported="true"
+            android:foregroundServiceType="microphone|mediaPlayback">
+            <intent-filter>
+                <action android:name="com.ai.audioagent.action.BIND_AGENT" />
+                <action android:name="com.ai.audioagent.action.START" />
+                <action android:name="com.ai.audioagent.action.STOP" />
+                <action android:name="com.ai.audioagent.action.BARGE_IN" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

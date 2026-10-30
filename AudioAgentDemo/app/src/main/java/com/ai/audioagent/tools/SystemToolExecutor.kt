@@ -1,109 +1,90 @@
 package com.ai.audioagent.tools
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import com.ai.audioagent.tools.impl.AirConditionerTool
+import com.ai.audioagent.tools.impl.AmapNavigationTool
+import com.ai.audioagent.tools.impl.SystemAlarmTool
+import com.ai.audioagent.tools.impl.SystemPhoneDialTool
+import com.ai.audioagent.tools.impl.WeatherQueryTool
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-data class ToolExecutionResult(
-    val action: String,
-    val success: Boolean,
-    val summary: String,
-    val rawJson: String
-)
-
 /**
- * Executes Function Calling / Tool Calling JSON payloads asynchronously.
- * Matches Section 5.2 of Whitepaper: "先安抚、后执行"
+ * 生产级工具调度执行中心 (ToolDispatcher)
+ * 符合白皮书 Section 4.2 与架构设计文档 Section 4.1-4.2 标准：
+ * 1. 采用 Schema 驱动的动态 ToolRegistry 注册表；
+ * 2. 真实驱动高德导航、系统闹钟、座舱空调与原生拨号盘；
+ * 3. 异步非阻塞执行并在主线程闭环分发结果。
  */
 class SystemToolExecutor(private val context: Context) {
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val scope = CoroutineScope(Dispatchers.IO)
 
+    init {
+        // 自动初始化并挂载系统内置工具插件
+        registerDefaultTools()
+    }
+
+    private fun registerDefaultTools() {
+        ToolRegistry.register(AmapNavigationTool(context))
+        ToolRegistry.register(SystemAlarmTool(context))
+        ToolRegistry.register(AirConditionerTool(context))
+        ToolRegistry.register(WeatherQueryTool(context))
+        ToolRegistry.register(SystemPhoneDialTool(context))
+        Log.i(TAG, "Registered ${ToolRegistry.getAllTools().size} system tools in ToolRegistry.")
+    }
+
+    /**
+     * 异步解析并派发工具调用 JSON 载荷
+     *
+     * @param toolJson 大模型输出的形如 {"action":"start_nav","dest":"..."} 格式字符串
+     * @param onComplete 异步回调执行结果
+     */
     fun executeToolCall(toolJson: String, onComplete: ((ToolExecutionResult) -> Unit)? = null) {
-        Log.i(TAG, "Dispatching tool call: $toolJson")
+        Log.i(TAG, "Dispatching tool call JSON: $toolJson")
 
-        try {
-            val json = JSONObject(toolJson)
-            val action = json.optString("action")
+        scope.launch {
+            try {
+                val json = JSONObject(toolJson)
+                val action = json.optString("action")
 
-            when (action) {
-                "start_nav" -> {
-                    val dest = json.optString("dest", "杭州西湖文化广场")
-                    launchNavigation(dest)
-                    val result = ToolExecutionResult(
-                        action = action,
-                        success = true,
-                        summary = "已在后台规划至: $dest (无感执行)",
-                        rawJson = toolJson
-                    )
-                    notifyResult(result, onComplete)
-                }
-
-                "set_ac_temp" -> {
-                    val temp = json.optInt("value", 24)
-                    val result = ToolExecutionResult(
-                        action = action,
-                        success = true,
-                        summary = "空调温度已调至: ${temp}℃",
-                        rawJson = toolJson
-                    )
-                    showToast(result.summary)
-                    notifyResult(result, onComplete)
-                }
-
-                "query_weather" -> {
-                    val city = json.optString("city", "杭州")
-                    val result = ToolExecutionResult(
-                        action = action,
-                        success = true,
-                        summary = "${city}当前天气：晴朗，气温22℃，微风",
-                        rawJson = toolJson
-                    )
-                    notifyResult(result, onComplete)
-                }
-
-                "set_alarm" -> {
-                    val time = json.optString("time", "07:30")
-                    val result = ToolExecutionResult(
-                        action = action,
-                        success = true,
-                        summary = "已设定明早闹钟: $time",
-                        rawJson = toolJson
-                    )
-                    showToast(result.summary)
-                    notifyResult(result, onComplete)
-                }
-
-                else -> {
-                    val result = ToolExecutionResult(
+                val tool = ToolRegistry.get(action)
+                val result = if (tool != null) {
+                    Log.i(TAG, "Executing registered tool: ${tool.name} (RiskLevel=${tool.riskLevel})")
+                    tool.execute(json)
+                } else {
+                    Log.w(TAG, "No registered tool for action: '$action', using fallback")
+                    ToolExecutionResult(
                         action = action.ifEmpty { "unknown" },
                         success = true,
                         summary = "已执行自定义系统动作: $action",
-                        rawJson = toolJson
+                        rawJson = toolJson,
+                        channel = "虚拟调度 (Virtual Stub)"
                     )
-                    notifyResult(result, onComplete)
                 }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse tool call JSON: $toolJson", e)
-            val errResult = ToolExecutionResult(
-                action = "error",
-                success = false,
-                summary = "工具指令解析错误: ${e.message}",
-                rawJson = toolJson
-            )
-            notifyResult(errResult, onComplete)
-        }
-    }
 
-    private fun launchNavigation(destination: String) {
-        mainHandler.post {
-            Toast.makeText(context, "🗺️ [后台工具] 已为您规划路线至: $destination", Toast.LENGTH_SHORT).show()
+                showToast(result.summary)
+                notifyResult(result, onComplete)
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse and execute tool call: $toolJson", e)
+                val errResult = ToolExecutionResult(
+                    action = "error",
+                    success = false,
+                    summary = "工具指令解析与执行异常: ${e.message}",
+                    rawJson = toolJson,
+                    channel = "异常拦截"
+                )
+                showToast(errResult.summary)
+                notifyResult(errResult, onComplete)
+            }
         }
     }
 

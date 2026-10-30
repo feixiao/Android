@@ -26,7 +26,9 @@ android {
             abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
         }
     }
-
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -51,6 +53,7 @@ android {
     buildFeatures {
         prefab = true
         viewBinding = false
+        aidl = true
     }
 
     externalNativeBuild {
@@ -71,4 +74,6 @@ dependencies {
 
     // Oboe Audio Foundation (Hardware DSP AEC & NS per Section 2.2)
     implementation("com.google.oboe:oboe:1.9.0")
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }

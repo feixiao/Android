@@ -15,7 +15,7 @@ import com.ai.audioagent.MainActivity
 import com.ai.audioagent.manager.AudioAgentManager
 import com.ai.audioagent.nativebridge.AgentState
 import com.ai.audioagent.nativebridge.AudioAgentListener
-
+import android.util.Log
 /**
  * ==============================================================================================
  *                     AudioAgentService 核心实现架构与前台保活设计
@@ -105,13 +105,64 @@ class AudioAgentService : Service(), AudioAgentListener {
     /** Android 8.0+ 系统通知渠道唯一标识符 */
     private val channelId = "audio_agent_service_channel"
 
+    /** 跨进程客户端监听器列表 (RemoteCallbackList 自动处理进程消亡清理) */
+    private val remoteCallbacks = android.os.RemoteCallbackList<com.ai.audioagent.ipc.IAudioAgentCallback>()
+
+    /**
+     * 跨进程 AIDL Binder 服务端桩对象 (IPC Stub)
+     * 供系统 UI、桌面 Launcher、第三方地图/音乐等独立进程远程绑定调用
+     */
+    private val binder = object : com.ai.audioagent.ipc.IAudioAgentService.Stub() {
+        override fun submitUserQuery(query: String?, extras: android.os.Bundle?) {
+            if (!query.isNullOrEmpty()) {
+                Log.i(TAG, "IPC Received submitUserQuery: '$query'")
+                agentManager.submitUserQuery(query)
+            }
+        }
+
+        override fun triggerBargeIn() {
+            Log.i(TAG, "IPC Received triggerBargeIn")
+            agentManager.triggerBargeIn()
+        }
+
+        override fun pauseAudioCapture() {
+            Log.i(TAG, "IPC Received pauseAudioCapture")
+            agentManager.pauseAudioIO()
+        }
+
+        override fun resumeAudioCapture(): Boolean {
+            Log.i(TAG, "IPC Received resumeAudioCapture")
+            return agentManager.resumeAudioIO()
+        }
+
+        override fun registerCallback(callback: com.ai.audioagent.ipc.IAudioAgentCallback?) {
+            if (callback != null) {
+                remoteCallbacks.register(callback)
+                Log.i(TAG, "Registered remote IPC callback (Total: ${remoteCallbacks.registeredCallbackCount})")
+            }
+        }
+
+        override fun unregisterCallback(callback: com.ai.audioagent.ipc.IAudioAgentCallback?) {
+            if (callback != null) {
+                remoteCallbacks.unregister(callback)
+                Log.i(TAG, "Unregistered remote IPC callback (Total: ${remoteCallbacks.registeredCallbackCount})")
+            }
+        }
+    }
+
+    /** 工具执行结果监听器闭包引用，便于 onDestroy 时精确释放 */
+    private val toolResultListener: (com.ai.audioagent.tools.ToolExecutionResult) -> Unit = { result ->
+        dispatchToolExecutedToRemote(result.action, result.success, result.summary)
+    }
+
     /**
      * @brief 服务初始化生命周期
      *
      * 执行流程：
      * 1. super.onCreate() 初始化系统服务基类；
      * 2. 获取 AudioAgentManager 单例并注册当前服务为状态监听器，以便感知底层 FSM 状态；
-     * 3. 在 Android 8.0+ 设备上预先创建低优先级静音通知渠道 (NotificationChannel)。
+     * 3. 注册工具执行监听器，用于将高德导航等工具结果同步给 IPC 远程调用方；
+     * 4. 在 Android 8.0+ 设备上预先创建低优先级静音通知渠道 (NotificationChannel)。
      */
     override fun onCreate() {
         super.onCreate()
@@ -119,6 +170,8 @@ class AudioAgentService : Service(), AudioAgentListener {
         agentManager = AudioAgentManager.getInstance(this)
         // 注册当前前台服务为事件监听者，用于感知底层状态流转
         agentManager.addListener(this)
+        // 注册工具执行结果监听器，用于跨进程广播
+        agentManager.addToolListener(toolResultListener)
         // 创建系统通知渠道（Android 8.0+ 强制要求）
         createNotificationChannel()
     }
@@ -178,56 +231,108 @@ class AudioAgentService : Service(), AudioAgentListener {
     }
 
     /**
-     * @brief 绑定接口实现
+     * @brief 绑定接口实现：返回跨进程 AIDL Binder 实例
      *
-     * 本服务采用 startService 独立生命周期运行，无需同客户端跨进程 Binder 绑定，故固定返回 null。
+     * 允许外部系统服务或第三方授权应用通过 bindService 跨进程连接本服务，
+     * 直接执行 submitUserQuery、triggerBargeIn 或监听全双工事件流。
      */
-    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onBind(intent: Intent?): IBinder {
+        Log.i(TAG, "AudioAgentService bound by client: action=${intent?.action}")
+        return binder
+    }
 
     /**
      * @brief 服务销毁生命周期
      *
-     * 注销对 AudioAgentManager 的事件监听，杜绝静态监听者导致的内存泄漏。
+     * 注销对 AudioAgentManager 的事件监听与工具监听，排空跨进程监听队列，杜绝内存泄漏。
      */
     override fun onDestroy() {
         agentManager.removeListener(this)
+        agentManager.removeToolListener(toolResultListener)
+        remoteCallbacks.kill()
+        Log.i(TAG, "AudioAgentService destroyed and remote callbacks killed.")
         super.onDestroy()
     }
 
     // -------------------------------------------------------------
-    // AudioAgentListener 回调实现：与底层 C++ 状态机闭环联动
+    // AudioAgentListener 回调实现：与底层 C++ 状态机及 IPC 闭环联动
     // -------------------------------------------------------------
 
     /**
      * @brief 全双工状态机 (FSM) 状态流转回调
      *
-     * 当底座感知线程/认知线程/表达线程驱动状态在 IDLE / LISTENING / THINKING / SPEAKING 之间切换时，
-     * 实时构建包含新状态副标题的 Notification 并推送给系统通知栏。
-     *
-     * @param newState 转换后的最新状态
-     * @param oldState 转换前的旧状态
+     * 1. 动态刷新系统前台通知栏副标题；
+     * 2. 跨进程广播通知所有绑定的外部应用 (IAudioAgentCallback)。
      */
     override fun onStateChanged(newState: AgentState, oldState: AgentState) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
         // 动态刷新前台常驻通知副标题，告知用户当前 Agent 处于倾听中、思考中或播报中
         manager?.notify(notificationId, buildNotification(newState))
+
+        // 跨进程分发
+        val count = remoteCallbacks.beginBroadcast()
+        for (i in 0 until count) {
+            try {
+                remoteCallbacks.getBroadcastItem(i).onStateChanged(newState.ordinal, oldState.ordinal)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to broadcast onStateChanged to client $i", e)
+            }
+        }
+        remoteCallbacks.finishBroadcast()
     }
 
-    /** 增量 ASR 识别中间结果（服务层透传占位，UI 订阅由 MainActivity 负责） */
-    override fun onAsrPartial(partialText: String) {}
+    /** 增量 ASR 识别中间结果 */
+    override fun onAsrPartial(partialText: String) {
+        broadcastAsrStreaming(partialText, isFinal = false)
+    }
 
-    /** 最终结算 ASR 文本（服务层透传占位） */
-    override fun onAsrFinal(finalText: String) {}
+    /** 最终结算 ASR 文本 */
+    override fun onAsrFinal(finalText: String) {
+        broadcastAsrStreaming(finalText, isFinal = true)
+    }
 
-    /** TTS 开始播报短句回调（服务层透传占位） */
-    override fun onTtsSentenceStart(sentence: String) {}
+    /** TTS 开始播报短句回调 */
+    override fun onTtsSentenceStart(sentence: String) {
+        val count = remoteCallbacks.beginBroadcast()
+        for (i in 0 until count) {
+            try {
+                remoteCallbacks.getBroadcastItem(i).onTtsSentenceStart(sentence)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to broadcast onTtsSentenceStart to client $i", e)
+            }
+        }
+        remoteCallbacks.finishBroadcast()
+    }
 
-    /** 大模型异步工具调用 JSON 截获（由 AudioAgentManager 分发至 SystemToolExecutor） */
+    /** 大模型异步工具调用 JSON 截获 */
     override fun onToolCall(toolJson: String) {}
 
-    /** Barge-in 硬件打断触发通知（已保留有效播报字数） */
+    /** Barge-in 硬件打断触发通知 */
     override fun onBargeIn(spokenTextRetained: String) {}
 
+    private fun broadcastAsrStreaming(text: String, isFinal: Boolean) {
+        val count = remoteCallbacks.beginBroadcast()
+        for (i in 0 until count) {
+            try {
+                remoteCallbacks.getBroadcastItem(i).onAsrStreaming(text, isFinal)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to broadcast onAsrStreaming to client $i", e)
+            }
+        }
+        remoteCallbacks.finishBroadcast()
+    }
+
+    private fun dispatchToolExecutedToRemote(action: String, success: Boolean, summary: String) {
+        val count = remoteCallbacks.beginBroadcast()
+        for (i in 0 until count) {
+            try {
+                remoteCallbacks.getBroadcastItem(i).onToolExecuted(action, success, summary)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to broadcast onToolExecuted to client $i", e)
+            }
+        }
+        remoteCallbacks.finishBroadcast()
+    }
     /** 首字延迟看门狗超时降级通知 */
     override fun onWatchdogFallback(reason: String) {}
 
@@ -313,6 +418,7 @@ class AudioAgentService : Service(), AudioAgentListener {
      * @brief 静态伴生对象：提供控制意图常量与外部快捷启动/停止入口
      */
     companion object {
+        private const val TAG = "AudioAgentService"
         /** 启动全双工服务控制动作 (提权前台并启动流水线) */
         const val ACTION_START = "com.ai.audioagent.action.START"
 

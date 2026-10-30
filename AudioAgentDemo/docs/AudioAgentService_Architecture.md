@@ -134,3 +134,9 @@
 | **JNI 接口层** | `app/src/main/java/.../nativebridge/AudioAgentNative.kt` | JNI Native 函数映射与高层回调事件转换 |
 | **JNI C++ 桥接** | `app/src/main/cpp/src/NativeJniBridge.cpp` | 跨线程附加 JavaVM 环境（`AttachCurrentThread`）与生命周期管理 |
 | **C++ 核心流水线** | `app/src/main/cpp/src/AudioAgentPipeline.cpp` | FSM 四态状态机、四工作线程池、微秒级打断与记忆系统 |
+
+---
+
+## 6. 相关技术文档
+* 📖 **[《AudioAgent 外部调用与系统工具执行生产级架构设计》](AudioAgent_External_Invocation_Architecture.md)**：系统化阐述在智能座舱与车载生产环境中，如何基于 AIDL / VoiceInteractionService、Schema 驱动的 ToolRegistry、AAOS VHAL 车控通道及 ReAct 状态回填进行生产级落地。
+* 📖 **[《Android 端侧全双工 AI Audio Agent 深度工程实战白皮书》](Android%20端侧全双工%20AI%20Audio%20Agent%20深度工程实战白皮书.md)**：深度拆解零拷贝无锁环形缓冲区、端侧 MNN-LLM Prefix KV Cache 固化与毫秒级打断等底层原理。

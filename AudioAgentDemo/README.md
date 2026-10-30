@@ -2,6 +2,11 @@
 
 本项目是基于白皮书 [《Android 端侧全双工 AI Audio Agent 深度工程实战白皮书》](docs/Android%20端侧全双工%20AI%20Audio%20Agent%20深度工程实战白皮书.md) 的完整工业级参考实现，实现了 **Oboe + Sherpa-onnx + MNN-LLM** 级联流水线的核心底层与 Android 应用层架构。
 
+### 📚 核心设计与深度工程文档
+* 📖 **[《Android 端侧全双工 AI Audio Agent 深度工程实战白皮书》](docs/Android%20端侧全双工%20AI%20Audio%20Agent%20深度工程实战白皮书.md)**：涵盖无锁环形缓冲区、Prefix KV Cache 固化、动态双阈值切词切句、Barge-in 打断回滚等全链路原理。
+* 🏛️ **[《AudioAgentService 架构设计与前台保活实践》](docs/AudioAgentService_Architecture.md)**：涵盖复合前台服务提权、防 lmkd 强杀、常驻通知栏联动与微秒级打断交互。
+* 🔌 **[《AudioAgent 外部调用与系统工具执行生产级架构设计》](docs/AudioAgent_External_Invocation_Architecture.md)**：涵盖生产级 Inbound（AIDL / VoiceInteractionService）、Outbound（Schema 驱动 ToolRegistry / 车控 VHAL / ReAct 双向闭环）、端云协同意图路由与两阶段安全确认防御体系。
+
 ---
 
 ## 核心特性与架构实现
