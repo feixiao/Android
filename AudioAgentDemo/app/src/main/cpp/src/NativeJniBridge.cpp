@@ -4,113 +4,13 @@
 #include "MnnLlmEngine.hpp"
 #include "MockCloudLlmEngine.hpp"
 #include "SherpaOnnxPerceptionEngine.hpp"
-#include <ctime>
-#include <regex>
-#if defined(__ANDROID__)
 #include <android/log.h>
+
 #define TAG "AudioAgentNative"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
-#else
-#include <iostream>
-#define LOGI(...) std::cout << "[AudioAgentNative] " << __VA_ARGS__ << std::endl
-#define LOGE(...) std::cerr << "[AudioAgentNative ERROR] " << __VA_ARGS__ << std::endl
-#endif
 
 namespace audio_agent {
-
-/**
- * @brief 仿真/演示感知引擎（DemoPerceptionEngine）
- * 
- * 作用：在未下载 Sherpa-onnx 完整权重时提供开箱即用的实时语音活动检测（VAD）与静音断句。
- * 算法：
- * 1. 采用时域绝对平均振幅（Average Energy）检测人声，门限为 0.035f；
- * 2. 连续 3 帧（30ms）超过能量阈值判定为人声起始；
- * 3. 连续 10 帧（约 320ms）低于能量阈值判定为静音端点（Endpoint），触发用户说话完毕信号。
- */
-class DemoPerceptionEngine : public ISpeechPerceptionEngine {
-public:
-    bool AcceptAudioChunk(const float* samples, int32_t count) override {
-        float energy = 0.0f;
-        for (int i = 0; i < count; ++i) energy += std::abs(samples[i]);
-        float avg_energy = count > 0 ? (energy / count) : 0.0f;
-
-        bool is_voice = avg_energy > 0.035f;
-        if (is_voice) {
-            speech_frames_++;
-            silence_frames_ = 0;
-            if (speech_frames_ >= 3) {
-                in_speech_ = true;
-                endpoint_ = false;
-            }
-        } else {
-            if (in_speech_) {
-                silence_frames_++;
-                // 320ms 连续静音端点检测（符合白皮书延迟预算）
-                if (silence_frames_ >= 10) {
-                    endpoint_ = true;
-                    in_speech_ = false;
-                    recorded_speech_frames_ = speech_frames_;
-                    speech_frames_ = 0;
-                    silence_frames_ = 0;
-                }
-            }
-        }
-        return is_voice;
-    }
-
-    bool IsEndpointDetected() override {
-        return endpoint_;
-    }
-
-    std::string GetRecognizedText(bool is_final) override {
-        if (is_final) {
-            endpoint_ = false;
-            if (!manual_text_.empty()) {
-                std::string res = manual_text_;
-                manual_text_.clear();
-                recorded_speech_frames_ = 0;
-                return res;
-            }
-            recorded_speech_frames_ = 0;
-            return "";
-        }
-        if (!in_speech_) return "";
-        return "正在倾听...";
-    }
-
-    void SetModelPath(const std::string& path) override {
-        model_path_ = path;
-        has_local_model_ = !path.empty();
-        LOGI("DemoPerceptionEngine configured model path: %s (enabled: %d)", path.c_str(), has_local_model_ ? 1 : 0);
-    }
-
-    void SetManualText(const std::string& text) {
-        manual_text_ = text;
-        if (!text.empty()) {
-            endpoint_ = true;
-            recorded_speech_frames_ = 5;
-        }
-    }
-
-    void Reset() override {
-        endpoint_ = false;
-        in_speech_ = false;
-        speech_frames_ = 0;
-        silence_frames_ = 0;
-        manual_text_.clear();
-    }
-
-private:
-    std::string manual_text_;
-    std::string model_path_;
-    bool has_local_model_{false};
-    bool endpoint_{false};
-    bool in_speech_{false};
-    int speech_frames_{0};
-    int silence_frames_{0};
-    int recorded_speech_frames_{0};
-};
 
 /**
  * @brief 仿真语音合成引擎（DemoTtsEngine）
@@ -168,19 +68,17 @@ struct JniBridgeContext {
         bool need_detach = false;
         jint res = jvm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
         if (res == JNI_EDETACHED) {
-#if defined(__ANDROID__)
             if (jvm->AttachCurrentThread(&env, nullptr) == 0) {
                 need_detach = true;
             }
-#else
-            if (jvm->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) == 0) {
-                need_detach = true;
-            }
-#endif
         }
 
         if (env) {
             fn(env);
+            if (env->ExceptionCheck()) {
+                env->ExceptionDescribe();
+                env->ExceptionClear();
+            }
             if (need_detach) {
                 jvm->DetachCurrentThread();
             }
@@ -218,9 +116,14 @@ Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeCreate(
     ctx->mid_on_watchdog_fallback = env->GetMethodID(cls, "onNativeWatchdogFallback", "(Ljava/lang/String;)V");
     ctx->mid_on_llm_stats = env->GetMethodID(cls, "onNativeLlmStats", "(Ljava/lang/String;)V");
 
-    const char* sys_prompt_cstr = env->GetStringUTFChars(system_prompt, nullptr);
-    std::string sys_prompt = sys_prompt_cstr ? sys_prompt_cstr : "";
-    env->ReleaseStringUTFChars(system_prompt, sys_prompt_cstr);
+    std::string sys_prompt;
+    if (system_prompt) {
+        const char* sys_prompt_cstr = env->GetStringUTFChars(system_prompt, nullptr);
+        if (sys_prompt_cstr) {
+            sys_prompt = sys_prompt_cstr;
+            env->ReleaseStringUTFChars(system_prompt, sys_prompt_cstr);
+        }
+    }
 
     auto perception = std::make_shared<SherpaOnnxPerceptionEngine>();
     ctx->mnn_llm = std::make_shared<MnnLlmEngine>();
@@ -414,9 +317,12 @@ Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeSubmitUserQuery(
     auto* ctx = reinterpret_cast<JniBridgeContext*>(handle);
     if (!ctx || !ctx->pipeline || !query) return;
 
+    std::string query_cpp;
     const char* q_str = env->GetStringUTFChars(query, nullptr);
-    std::string query_cpp = q_str ? q_str : "";
-    env->ReleaseStringUTFChars(query, q_str);
+    if (q_str) {
+        query_cpp = q_str;
+        env->ReleaseStringUTFChars(query, q_str);
+    }
 
     ctx->pipeline->SubmitUserQuery(query_cpp);
 }

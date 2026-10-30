@@ -73,6 +73,37 @@ Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeOnThermalChanged(
     jint thermal_status
 );
 
+JNIEXPORT void JNICALL
+Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeSetModelPath(
+    JNIEnv* env,
+    jobject thiz,
+    jlong handle,
+    jstring model_path
+);
+
+JNIEXPORT void JNICALL
+Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeSetLlmModelPath(
+    JNIEnv* env,
+    jobject thiz,
+    jlong handle,
+    jstring model_path
+);
+
+JNIEXPORT void JNICALL
+Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeSetLlmEngineMode(
+    JNIEnv* env,
+    jobject thiz,
+    jlong handle,
+    jint mode
+);
+
+JNIEXPORT jstring JNICALL
+Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeGetLlmStats(
+    JNIEnv* env,
+    jobject thiz,
+    jlong handle
+);
+
 JNIEXPORT jintArray JNICALL
 Java_com_ai_audioagent_nativebridge_AudioAgentNative_nativeGetTopPerformanceCores(
     JNIEnv* env,
