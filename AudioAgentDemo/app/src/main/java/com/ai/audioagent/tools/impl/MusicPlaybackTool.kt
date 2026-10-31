@@ -219,6 +219,16 @@ class MusicPlaybackTool(private val context: Context) : AgentTool {
             }
         }
 
+        // 当执行暂停指令后，主动通知 AudioAgentManager 回正音频焦点并准备随时全双工对聊
+        if (command == "pause") {
+            try {
+                val appCtx = context.applicationContext ?: context
+                com.ai.audioagent.manager.AudioAgentManager.getInstance(appCtx)
+                    .reclaimAudioFocusAndResume("Tool paused music")
+            } catch (e: Exception) {
+                Log.w(TAG, "AudioAgentManager not available in current context", e)
+            }
+        }
         val actionDesc = when (command) {
             "pause" -> "暂停播放"
             "resume" -> "恢复播放"

@@ -183,4 +183,42 @@ class ToolSystemTest {
         assertEquals("play_music", result.action)
         assertTrue(result.summary.contains("晴天"))
     }
+
+    @Test
+    fun testMusicPlaybackToolControlCommands() = runBlocking {
+        val musicTool = com.ai.audioagent.tools.impl.MusicPlaybackTool(
+            context = android.content.ContextWrapper(null)
+        )
+
+        // 1. Test pause command
+        val pauseParams = JSONObject().apply {
+            put("query", "晴天")
+            put("command", "pause")
+        }
+        val pauseResult = musicTool.execute(pauseParams)
+        assertTrue(pauseResult.success)
+        assertEquals("play_music", pauseResult.action)
+        assertTrue(pauseResult.summary.contains("暂停播放"))
+        assertEquals(android.view.KeyEvent.KEYCODE_MEDIA_PAUSE, pauseResult.extras["keyCode"])
+
+        // 2. Test next command
+        val nextParams = JSONObject().apply {
+            put("query", "")
+            put("command", "next")
+        }
+        val nextResult = musicTool.execute(nextParams)
+        assertTrue(nextResult.success)
+        assertTrue(nextResult.summary.contains("切到下一首"))
+        assertEquals(android.view.KeyEvent.KEYCODE_MEDIA_NEXT, nextResult.extras["keyCode"])
+
+        // 3. Test resume command
+        val resumeParams = JSONObject().apply {
+            put("query", "")
+            put("command", "resume")
+        }
+        val resumeResult = musicTool.execute(resumeParams)
+        assertTrue(resumeResult.success)
+        assertTrue(resumeResult.summary.contains("恢复播放"))
+        assertEquals(android.view.KeyEvent.KEYCODE_MEDIA_PLAY, resumeResult.extras["keyCode"])
+    }
 }

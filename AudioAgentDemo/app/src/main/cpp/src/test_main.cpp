@@ -409,13 +409,19 @@ static void TestFullDuplexPipeline() {
     assert(pipeline.GetState() == AgentState::LISTENING);
     assert(saw_barge_in.load());
 
+    // 3. Test PauseAudioIO & ResumeAudioIO recovery (e.g. after external music playback starts & stops)
+    pipeline.PauseAudioIO();
+    bool resumed = pipeline.ResumeAudioIO();
+    assert(resumed);
+    // Pipeline state must cleanly reset from interrupted LISTENING back to ready IDLE
+    assert(pipeline.GetState() == AgentState::IDLE);
+
     // Verify KV cache rollback occurred
     auto active_turns = pipeline.GetMemory().GetActiveTurns();
     if (!active_turns.empty()) {
         std::cout << "  [Memory Verified] Last response recorded: "
                   << active_turns.back().assistant_response << std::endl;
     }
-
     pipeline.Stop();
     LogPass("Full-Duplex Pipeline end-to-end and Barge-in passed.");
 }
@@ -1022,11 +1028,27 @@ static void TestIntentArbiterSuite() {
         assert(tool2.find("off") != std::string::npos);
     }
 
-    // 6. Music: "放一首周杰伦的晴天"
+    // 6. Music: "放一首周杰伦的晴天" and media control commands
     {
         std::string tool = IntentArbiter::ResolveToolCall("放一首周杰伦的晴天");
         assert(tool.find("play_music") != std::string::npos);
         assert(tool.find("晴天") != std::string::npos);
+
+        std::string pause_tool = IntentArbiter::ResolveToolCall("暂停播放");
+        assert(pause_tool.find("play_music") != std::string::npos);
+        assert(pause_tool.find("pause") != std::string::npos);
+
+        std::string stop_tool = IntentArbiter::ResolveToolCall("关闭音乐");
+        assert(stop_tool.find("play_music") != std::string::npos);
+        assert(stop_tool.find("pause") != std::string::npos);
+
+        std::string next_tool = IntentArbiter::ResolveToolCall("切歌");
+        assert(next_tool.find("play_music") != std::string::npos);
+        assert(next_tool.find("next") != std::string::npos);
+
+        std::string resume_tool = IntentArbiter::ResolveToolCall("继续播放");
+        assert(resume_tool.find("play_music") != std::string::npos);
+        assert(resume_tool.find("resume") != std::string::npos);
     }
 
     // 7. Non-tool queries must NOT trigger tools (Anti-conflict invariant)
@@ -1035,6 +1057,48 @@ static void TestIntentArbiterSuite() {
         assert(IntentArbiter::ResolveToolCall("给我讲个好笑的笑话吧").empty());
         assert(IntentArbiter::ResolveToolCall("现在几点了？").empty());
         assert(IntentArbiter::ResolveToolCall("你好，请问你是谁？").empty());
+    }
+    // 7.1 Zero-Hallucination & Slot Missing Invariant: Never hallucinate fake slots!
+    {
+        // Missing destination must NOT hallucinate "西湖文化广场"
+        auto nav_res = IntentArbiter::Arbitrate("我要去");
+        assert(nav_res.status == ArbiterStatus::SLOT_MISSING);
+        assert(nav_res.missing_slot == "destination");
+        assert(IntentArbiter::ResolveToolCall("我要去").empty());
+
+        // Missing alarm time must NOT hallucinate "07:30"
+        auto alarm_res = IntentArbiter::Arbitrate("帮我定个闹钟");
+        assert(alarm_res.status == ArbiterStatus::SLOT_MISSING);
+        assert(alarm_res.missing_slot == "time");
+        assert(IntentArbiter::ResolveToolCall("帮我定个闹钟").empty());
+
+        // Missing phone target must NOT hallucinate "10086"
+        auto phone_res = IntentArbiter::Arbitrate("打电话");
+        assert(phone_res.status == ArbiterStatus::SLOT_MISSING);
+        assert(phone_res.missing_slot == "phone_number");
+        assert(IntentArbiter::ResolveToolCall("打电话").empty());
+    }
+
+    // 7.2 Universal Chinese Number & Temperature Normalization (No hardcoded 16-32 vector)
+    {
+        std::string tool30 = IntentArbiter::ResolveToolCall("把空调温度调到三十度");
+        assert(tool30.find("set_ac_temp") != std::string::npos);
+        assert(tool30.find("30") != std::string::npos);
+
+        std::string tool16 = IntentArbiter::ResolveToolCall("把空调调到十六度");
+        assert(tool16.find("set_ac_temp") != std::string::npos);
+        assert(tool16.find("16") != std::string::npos);
+    }
+
+    // 7.3 Dynamic Entity Registration (Decoupled from code)
+    {
+        IntentArbiter::RegisterCities({"三亚", "拉萨"});
+        std::string weather_tool = IntentArbiter::ResolveToolCall("查询三亚的天气");
+        assert(weather_tool.find("三亚") != std::string::npos);
+
+        IntentArbiter::RegisterContacts({"主管", "王经理"});
+        std::string phone_tool = IntentArbiter::ResolveToolCall("打电话给王经理");
+        assert(phone_tool.find("王经理") != std::string::npos);
     }
 
     // 8. Pipeline Tool Compensation Simulation:

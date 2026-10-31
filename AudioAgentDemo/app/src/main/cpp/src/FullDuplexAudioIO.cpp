@@ -55,7 +55,12 @@ bool FullDuplexAudioIO::StartStreams() {
 
     oboe::Result res = inBuilder.openStream(input_stream_);
     if (res != oboe::Result::OK) {
-        return false;
+        // 短暂休眠 50ms 重新尝试一次，应对音频 HAL 拓扑切换瞬态被占用的情况
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        res = inBuilder.openStream(input_stream_);
+        if (res != oboe::Result::OK) {
+            return false;
+        }
     }
 
     // 2. 配置播放流（24kHz，VoiceCommunication 用途用于回声参考回路）
@@ -72,14 +77,34 @@ bool FullDuplexAudioIO::StartStreams() {
 
     res = outBuilder.openStream(output_stream_);
     if (res != oboe::Result::OK) {
-        input_stream_->close();
-        input_stream_.reset();
+        // 当系统其他应用或媒体刚刚释放时，Exclusive 独占模式可能不可用，平滑降级至 Shared 共享混音模式
+        outBuilder.setSharingMode(oboe::SharingMode::Shared);
+        res = outBuilder.openStream(output_stream_);
+    }
+    if (res != oboe::Result::OK) {
+        if (input_stream_) {
+            input_stream_->close();
+            input_stream_.reset();
+        }
         return false;
     }
 
     // 并行请求启动硬件流
-    output_stream_->requestStart();
-    input_stream_->requestStart();
+    oboe::Result rOut = output_stream_->requestStart();
+    oboe::Result rIn = input_stream_->requestStart();
+    if (rOut != oboe::Result::OK || rIn != oboe::Result::OK) {
+        if (output_stream_) {
+            output_stream_->stop();
+            output_stream_->close();
+            output_stream_.reset();
+        }
+        if (input_stream_) {
+            input_stream_->stop();
+            input_stream_->close();
+            input_stream_.reset();
+        }
+        return false;
+    }
 #endif
 
     is_running_.store(true, std::memory_order_release);
@@ -106,6 +131,10 @@ void FullDuplexAudioIO::StopStreams() {
         output_stream_.reset();
     }
 #endif
+
+    if (spk_ring_buffer_) {
+        spk_ring_buffer_->clear();
+    }
 }
 
 /**

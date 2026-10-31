@@ -122,6 +122,12 @@ void AudioAgentPipeline::PauseAudioIO() {
     if (audio_io_) {
         audio_io_->StopStreams();
     }
+    if (spk_ring_buffer_) {
+        spk_ring_buffer_->clear();
+    }
+    if (mic_ring_buffer_) {
+        mic_ring_buffer_->clear();
+    }
 }
 
 /**
@@ -130,7 +136,17 @@ void AudioAgentPipeline::PauseAudioIO() {
 bool AudioAgentPipeline::ResumeAudioIO() {
     if (!is_running_.load(std::memory_order_acquire)) return false;
     if (audio_io_) {
-        return audio_io_->StartStreams();
+        bool ok = audio_io_->StartStreams();
+        if (ok) {
+            if (perception_engine_) {
+                perception_engine_->Reset();
+            }
+            AgentState cur = state_.load(std::memory_order_acquire);
+            if (cur == AgentState::SPEAKING || cur == AgentState::LISTENING) {
+                SetState(AgentState::IDLE);
+            }
+        }
+        return ok;
     }
     return false;
 }
@@ -411,7 +427,17 @@ void AudioAgentPipeline::CognitionWorkerLoop() {
                 } else if (fallback_tool_json.find("set_ac_power") != std::string::npos) {
                     reassurance = "好的，已为您设置空调。";
                 } else if (fallback_tool_json.find("play_music") != std::string::npos) {
-                    reassurance = "好的，为您播放音乐。";
+                    if (fallback_tool_json.find("pause") != std::string::npos) {
+                        reassurance = "好的，已为您暂停音乐播放。";
+                    } else if (fallback_tool_json.find("next") != std::string::npos) {
+                        reassurance = "好的，已为您切到下一首。";
+                    } else if (fallback_tool_json.find("previous") != std::string::npos) {
+                        reassurance = "好的，已为您切回上一首。";
+                    } else if (fallback_tool_json.find("resume") != std::string::npos) {
+                        reassurance = "好的，继续播放音乐。";
+                    } else {
+                        reassurance = "好的，为您播放音乐。";
+                    }
                 } else if (fallback_tool_json.find("set_alarm") != std::string::npos) {
                     reassurance = "好的，已为您设定闹钟。";
                 } else if (fallback_tool_json.find("query_weather") != std::string::npos) {
@@ -505,12 +531,16 @@ void AudioAgentPipeline::ExpressionWorkerLoop() {
         if (queue_empty && !IsBargeInAborted()) {
             // 等待扬声器缓冲区内的剩余音频被声卡彻底消费完毕
             while (spk_ring_buffer_ && spk_ring_buffer_->available_read() > 0 &&
-                   !IsBargeInAborted() && is_running_.load(std::memory_order_acquire)) {
+                   !IsBargeInAborted() && is_running_.load(std::memory_order_acquire) &&
+                   audio_io_ && audio_io_->IsRunning()) {
                 {
                     std::lock_guard<std::mutex> lock(tts_mtx_);
                     if (!tts_queue_.empty()) break;
                 }
                 std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            }
+            if (spk_ring_buffer_ && (!audio_io_ || !audio_io_->IsRunning())) {
+                spk_ring_buffer_->clear();
             }
             if (!IsBargeInAborted() && state_.load(std::memory_order_acquire) == AgentState::SPEAKING) {
                 std::lock_guard<std::mutex> lock(tts_mtx_);

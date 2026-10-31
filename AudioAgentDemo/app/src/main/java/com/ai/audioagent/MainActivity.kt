@@ -190,8 +190,9 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
                 etCustomQuery.setText("")
                 return@setOnClickListener
             }
+            agentManager.ensureActive("btnVoice")
             if (ModelManager.isModelReady(this)) {
-                appendLog("[全双工免触] 离线 ASR 模型已挂载运行，全双工麦克风处于实时监听状态，请直接对着手机说话，无需按键！")
+                appendLog("[全双工免触] 对聊通道与麦克风已就绪，全双工实时监听中，请直接对着手机说话！")
                 return@setOnClickListener
             }
             if (isListeningSpeech) {
@@ -202,6 +203,7 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
         }
         btnBargeIn.setOnClickListener {
             agentManager.triggerBargeIn()
+            agentManager.ensureActive("btnBargeIn")
             appendLog("[用户] ⚡ 手动触发 Barge-in 硬件级打断！")
         }
 
@@ -612,6 +614,15 @@ class MainActivity : AppCompatActivity(), AudioAgentListener {
             }
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Failed to parse LLM stats", e)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::agentManager.isInitialized) {
+            agentManager.ensureActive("MainActivity.onResume")
+            tvCurrentState.text = "当前状态: ${agentManager.currentState.displayName}"
+            stateVisualizerView.setState(agentManager.currentState)
         }
     }
 
